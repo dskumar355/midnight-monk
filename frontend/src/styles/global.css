@@ -1,0 +1,47 @@
+/* Global reset */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* Body */
+body {
+  font-family: Arial, Helvetica, sans-serif;
+  background-color: #121212;
+  color: #ffffff;
+}
+
+/* Links */
+a {
+  color: #ffcc00;
+  text-decoration: none;
+}
+
+/* Buttons */
+button {
+  padding: 8px 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background-color: #ffcc00;
+  color: #000;
+  font-weight: bold;
+}
+
+button:hover {
+  opacity: 0.9;
+}
+
+/* Containers */
+.container {
+  padding: 24px;
+}
+
+/* Cards */
+.card {
+  background: #1e1e1e;
+  padding: 16px;
+  margin-bottom: 12px;
+  border-radius: 8px;
+}

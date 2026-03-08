@@ -19,3 +19,4 @@ class Config:
 
     # ✅ Environment
     DEBUG = os.getenv("FLASK_ENV", "development") == "development"
+ 

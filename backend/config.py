@@ -7,7 +7,7 @@ class Config:
     # ✅ MongoDB Atlas
     MONGO_URI = os.getenv(
         "MONGO_URI",
-        "mongodb+srv://Saikumar0319:sai123@midnightmonk.w63vctf.mongodb.net/?appName=midnightmonk"
+        "mongodb+srv://*********:******@midnightmonk.w63vctf.mongodb.net/?appName=midnightmonk"
     )
     DATABASE_NAME = os.getenv("DATABASE_NAME", "midnight_monk")
 

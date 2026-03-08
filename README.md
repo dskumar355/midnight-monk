@@ -7,7 +7,7 @@ Built with **React + Vite** (frontend) and **Flask + MongoDB** (backend).
 
 ---
 
-## 🚀 Features
+## 🚀 Features 
 
 - 👤 **User** — Browse kitchens, order food, track order status live
 - 🍳 **Kitchen Admin** — Manage menu, update order statuses, view analytics

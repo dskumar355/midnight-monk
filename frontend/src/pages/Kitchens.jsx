@@ -4,6 +4,7 @@ import { api } from "../services/api";
 import { useUserAuth } from "../context/UserAuthContext";
 import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/Navbar";
+import SupportWidget from "../components/SupportWidget";
 
 export default function Kitchens() {
   const navigate = useNavigate();
@@ -51,7 +52,6 @@ export default function Kitchens() {
       />
 
       <div style={{ padding: "28px 24px" }}>
-        {/* Welcome */}
         <div style={{ marginBottom: "28px" }}>
           <h2 style={{ fontSize: "22px", fontWeight: "900", color: t.text, margin: "0 0 4px 0" }}>
             Hey {user?.name?.split(" ")[0] || "there"} 👋
@@ -87,6 +87,8 @@ export default function Kitchens() {
           ))}
         </div>
       </div>
+
+      <SupportWidget senderName={user?.name} senderType="user" />
     </div>
   );
 }

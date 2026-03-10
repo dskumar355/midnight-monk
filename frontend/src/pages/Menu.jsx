@@ -5,6 +5,7 @@ import { useUserAuth } from "../context/UserAuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { api } from "../services/api";
 import Navbar from "../components/Navbar";
+import SupportWidget from "../components/SupportWidget";
 
 const CATEGORIES = ["All", "Veg", "Non Veg", "Fast Food", "Drinks"];
 const CAT_COLORS  = { Veg:"#27ae60","Non Veg":"#e74c3c","Fast Food":"#e67e22",Drinks:"#3498db","Main Course":"#9b59b6",Snacks:"#f39c12" };
@@ -30,7 +31,6 @@ export default function Menu() {
 
   const filtered = category === "All" ? items : items.filter(i => i.category === category);
   const getQty   = (id) => cart.find(i => i.id === id)?.quantity || 0;
-
   const handleLogout = () => { logout(); navigate("/login"); };
 
   if (loading) return (
@@ -99,6 +99,8 @@ export default function Menu() {
           </button>
         </div>
       )}
+
+      <SupportWidget senderName={user?.name} senderType="user" />
     </div>
   );
 }

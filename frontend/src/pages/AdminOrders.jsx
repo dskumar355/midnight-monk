@@ -4,8 +4,9 @@ import { useOrders } from "../context/OrderContext";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import SupportWidget from "../components/SupportWidget";
 
-const STEPS = ["Placed", "Preparing", "Out for Delivery", "Delivered"];
+const STEPS    = ["Placed", "Preparing", "Out for Delivery", "Delivered"];
 const STATUS_C = { Placed:"#3498db", Preparing:"#e67e22", "Out for Delivery":"#9b59b6", Delivered:"#27ae60" };
 
 export default function AdminOrders() {
@@ -99,6 +100,8 @@ export default function AdminOrders() {
           </div>
         )}
       </div>
+
+      <SupportWidget senderName={admin?.username} senderType="admin" />
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { useCart } from "../context/CartContext";
 import { useUserAuth } from "../context/UserAuthContext";
 import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/Navbar";
+import SupportWidget from "../components/SupportWidget";
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -19,6 +20,7 @@ export default function Cart() {
         <p style={{ fontSize:"16px", fontWeight:"700", color:t.text, fontFamily:"'Segoe UI',sans-serif" }}>Your cart is empty</p>
         <button onClick={() => navigate("/menu")} style={{ backgroundColor:t.accent, color:"#fff", border:"none", borderRadius:"8px", padding:"12px 24px", fontSize:"14px", fontWeight:"700", cursor:"pointer" }}>Browse Menu</button>
       </div>
+      <SupportWidget senderName={user?.name} senderType="user" />
     </div>
   );
 
@@ -68,6 +70,8 @@ export default function Cart() {
           Proceed to Checkout →
         </button>
       </div>
+
+      <SupportWidget senderName={user?.name} senderType="user" />
     </div>
   );
 }

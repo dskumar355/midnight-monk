@@ -4,6 +4,7 @@ import { useTheme } from "../context/ThemeContext";
 import { api } from "../services/api";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import SupportWidget from "../components/SupportWidget";
 
 const CATEGORIES = ["Veg","Non Veg","Fast Food","Drinks","Main Course","Snacks"];
 
@@ -11,11 +12,11 @@ export default function AdminMenu() {
   const navigate = useNavigate();
   const t = useTheme();
   const { admin, logout } = useAdminAuth();
-  const [items, setItems]   = useState([]);
+  const [items, setItems]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [form, setForm]     = useState({ name:"", price:"", category:"Veg", description:"", calories:"", protein:"", discount:"0" });
-  const [adding, setAdding] = useState(false);
-  const [error, setError]   = useState("");
+  const [form, setForm]       = useState({ name:"", price:"", category:"Veg", description:"", calories:"", protein:"", discount:"0" });
+  const [adding, setAdding]   = useState(false);
+  const [error, setError]     = useState("");
 
   useEffect(() => {
     if (!admin) { navigate("/login/admin"); return; }
@@ -50,7 +51,6 @@ export default function AdminMenu() {
   };
 
   const handleLogout = () => { logout(); navigate("/login/admin"); };
-
   const inputStyle = { border:`1.5px solid ${t.dark?"#2a2a3e":"#e0e0e0"}`, borderRadius:"8px", padding:"10px 12px", fontSize:"13px", outline:"none", fontFamily:"'Segoe UI',sans-serif", backgroundColor:t.input, color:t.text };
 
   if (loading) return (
@@ -113,6 +113,8 @@ export default function AdminMenu() {
           ))}
         </div>
       </div>
+
+      <SupportWidget senderName={admin?.username} senderType="admin" />
     </div>
   );
 }

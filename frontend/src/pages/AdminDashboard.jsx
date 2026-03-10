@@ -4,6 +4,7 @@ import { useAdminAuth } from "../context/AdminAuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { api } from "../services/api";
 import Navbar from "../components/Navbar";
+import SupportWidget from "../components/SupportWidget";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -97,6 +98,8 @@ export default function AdminDashboard() {
           </div>
         )}
       </div>
+
+      <SupportWidget senderName={admin?.username} senderType="admin" />
     </div>
   );
 }

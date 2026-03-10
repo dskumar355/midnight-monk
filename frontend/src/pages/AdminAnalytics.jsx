@@ -3,6 +3,7 @@ import { useAdminAuth } from "../context/AdminAuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import SupportWidget from "../components/SupportWidget";
 
 export default function AdminAnalytics() {
   const navigate = useNavigate();
@@ -92,6 +93,8 @@ export default function AdminAnalytics() {
           </div>
         </div>
       </div>
+
+      <SupportWidget senderName={admin?.username} senderType="admin" />
     </div>
   );
 }

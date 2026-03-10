@@ -5,6 +5,7 @@ import { useOrders } from "../context/OrderContext";
 import { useUserAuth } from "../context/UserAuthContext";
 import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/Navbar";
+import SupportWidget from "../components/SupportWidget";
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -45,6 +46,7 @@ export default function Checkout() {
         <p style={{ color:t.text, fontWeight:"700" }}>Your cart is empty</p>
         <button onClick={() => navigate("/menu")} style={btnStyle(t)}>Browse Menu</button>
       </div>
+      <SupportWidget senderName={user?.name} senderType="user" />
     </div>
   );
 
@@ -94,6 +96,8 @@ export default function Checkout() {
           {loading ? "Placing Order..." : `🛵 Place Order · ₹${totalPrice.toFixed(2)}`}
         </button>
       </div>
+
+      <SupportWidget senderName={user?.name} senderType="user" />
     </div>
   );
 }

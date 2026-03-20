@@ -1,7 +1,7 @@
 // ✅ Central API service for Midnight Monk
 // All backend calls go through here
 
-const BASE_URL = "http://localhost:8000/api";
+const BASE_URL = import.meta.env.VITE_API_URL + "/api";
 
 // ─────────────────────────────────────────
 // 🔧 HELPER — make authenticated requests
@@ -74,6 +74,12 @@ export const api = {
   deleteKitchen: (kitchenId) =>
     fetch(`${BASE_URL}/kitchens/${kitchenId}`, {
       method: "DELETE",
+      headers: getHeaders(),
+    }).then(handleResponse),
+
+  toggleKitchen: (kitchenId) =>
+    fetch(`${BASE_URL}/kitchens/${kitchenId}/toggle`, {
+      method: "PATCH",
       headers: getHeaders(),
     }).then(handleResponse),
 

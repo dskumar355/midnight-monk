@@ -83,16 +83,13 @@ def require_auth(request):
 def require_role(request, role):
     """
     Verify request has valid token AND correct role.
-    Returns (payload, error_response)
-    Usage:
-        payload, err = require_role(request, "kitchen_admin")
-        if err: return err
     """
     payload, err = require_auth(request)
     if err:
         return None, err
 
-    if payload.get("role") != role:
+    roles_allowed = role if isinstance(role, list) else [role]
+    if payload.get("role") not in roles_allowed:
         return None, ({"error": f"Access denied. Required role: {role}"}, 403)
 
     return payload, None

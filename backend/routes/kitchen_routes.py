@@ -107,6 +107,32 @@ def update_kitchen(kitchen_id):
 
 
 # ─────────────────────────────────────────
+# 🔄 TOGGLE KITCHEN STATUS (Kitchen Admin only)
+# PATCH /api/kitchens/<kitchen_id>/toggle
+# ─────────────────────────────────────────
+@kitchen_routes.route("/<kitchen_id>/toggle", methods=["PATCH"])
+def toggle_open(kitchen_id):
+    payload, err = require_role(request, ["kitchen_admin", "master_admin"])
+    if err:
+        return jsonify(err[0]), err[1]
+
+    if payload.get("role") == "kitchen_admin" and payload.get("kitchenId") != kitchen_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    kitchen = kitchens_collection.find_one({"kitchen_id": kitchen_id})
+    if not kitchen:
+        return jsonify({"error": "Kitchen not found"}), 404
+
+    new_status = not kitchen.get("is_open", True)
+    kitchens_collection.update_one(
+        {"kitchen_id": kitchen_id},
+        {"$set": {"is_open": new_status, "updatedAt": datetime.utcnow().isoformat()}}
+    )
+    return jsonify({"message": "Status updated", "isOpen": new_status}), 200
+
+
+
+# ─────────────────────────────────────────
 # 🗑️ DELETE KITCHEN (Master Admin only)
 # DELETE /api/kitchens/<kitchen_id>
 # ─────────────────────────────────────────

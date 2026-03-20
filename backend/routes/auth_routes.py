@@ -4,6 +4,7 @@ from models.user_model import create_user, format_user, validate_user
 from utils.helpers import generate_token, verify_token
 import hashlib
 from datetime import datetime
+from utils.limiter import limiter
 
 auth_routes = Blueprint("auth_routes", __name__)
 
@@ -15,6 +16,7 @@ def hash_password(password):
 # Matches Login.jsx handleUserLogin()
 # ─────────────────────────────────────────
 @auth_routes.route("/user-login", methods=["POST"])
+@limiter.limit("10 per minute")
 def user_login():
     data = request.json or {}
     name   = data.get("name", "").strip()
@@ -63,6 +65,7 @@ def user_login():
 # Matches Register.jsx handleRegister()
 # ─────────────────────────────────────────
 @auth_routes.route("/user-register", methods=["POST"])
+@limiter.limit("10 per minute")
 def user_register():
     data = request.json or {}
     name           = data.get("name", "").strip()
@@ -107,6 +110,7 @@ def user_register():
 # Matches AdminLogin.jsx
 # ─────────────────────────────────────────
 @auth_routes.route("/admin-login", methods=["POST"])
+@limiter.limit("10 per minute")
 def admin_login():
     data = request.json or {}
     username = data.get("username", "").strip()
@@ -150,6 +154,7 @@ def admin_login():
 # Matches MasterAdminLogin.jsx
 # ─────────────────────────────────────────
 @auth_routes.route("/master-login", methods=["POST"])
+@limiter.limit("10 per minute")
 def master_login():
     data = request.json or {}
     username = data.get("username", "").strip()

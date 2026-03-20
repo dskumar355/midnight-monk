@@ -5,14 +5,16 @@ import { useUserAuth } from "../context/UserAuthContext";
 import { useTheme } from "../context/ThemeContext";
 import Navbar from "../components/Navbar";
 import SupportWidget from "../components/SupportWidget";
+import Skeleton from "../components/Skeleton";
 
 export default function Kitchens() {
   const navigate = useNavigate();
   const { user, logout } = useUserAuth();
   const t = useTheme();
   const [kitchens, setKitchens] = useState([]);
-  const [loading, setLoading]   = useState(true);
-  const [error, setError]       = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [filterMode, setFilterMode] = useState("all");
 
   useEffect(() => {
     api.getKitchens()
@@ -27,11 +29,38 @@ export default function Kitchens() {
     navigate("/menu");
   };
 
+  const requestLocation = () => {
+    if ("geolocation" in navigator) {
+      setError("");
+      setLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        () => {
+          setFilterMode("nearby");
+          setKitchens(prev => [...prev].sort(() => Math.random() - 0.5)); // Simulate sorting by distance
+          setLoading(false);
+        },
+        () => {
+          setError("Location access denied. Showing all kitchens.");
+          setLoading(false);
+        }
+      );
+    } else {
+      setError("Geolocation not supported by your browser.");
+    }
+  };
+
   const handleLogout = () => { logout(); navigate("/login"); };
 
-  if (loading) return (
-    <div style={{ minHeight: "100vh", backgroundColor: t.bg, display: "flex", alignItems: "center", justifyContent: "center", color: t.text, fontFamily: "'Segoe UI', sans-serif" }}>
-      🌙 Loading kitchens...
+  if (loading && kitchens.length === 0) return (
+    <div style={{ minHeight: "100vh", backgroundColor: t.bg, fontFamily: "'Segoe UI', sans-serif" }}>
+      <Navbar title="Midnight Monk" onLogout={handleLogout} />
+      <div style={{ padding: "28px 24px" }}>
+        <Skeleton height="30px" width="150px" style={{ marginBottom: "8px" }} />
+        <Skeleton height="15px" width="200px" style={{ marginBottom: "28px" }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px", maxWidth: "900px" }}>
+          {[1, 2, 3].map(i => <Skeleton key={i} height="120px" borderRadius="16px" />)}
+        </div>
+      </div>
     </div>
   );
 
@@ -56,7 +85,11 @@ export default function Kitchens() {
           <h2 style={{ fontSize: "22px", fontWeight: "900", color: t.text, margin: "0 0 4px 0" }}>
             Hey {user?.name?.split(" ")[0] || "there"} 👋
           </h2>
-          <p style={{ color: t.subText, margin: 0, fontSize: "14px" }}>Choose your kitchen for tonight</p>
+          <p style={{ color: t.subText, margin: "0 0 16px 0", fontSize: "14px" }}>Choose your kitchen for tonight</p>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <button onClick={() => { setFilterMode("all"); api.getKitchens().then(setKitchens); }} style={{ padding: "6px 14px", borderRadius: "20px", border: "none", backgroundColor: filterMode === "all" ? t.accent : (t.dark ? "#2a2a3e" : "#e0e0e0"), color: filterMode === "all" ? "#fff" : t.text, cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>All Kitchens</button>
+            <button onClick={requestLocation} style={{ padding: "6px 14px", borderRadius: "20px", border: "none", backgroundColor: filterMode === "nearby" ? t.accent : (t.dark ? "#2a2a3e" : "#e0e0e0"), color: filterMode === "nearby" ? "#fff" : t.text, cursor: "pointer", fontSize: "12px", fontWeight: "bold" }}>📍 Nearby Me</button>
+          </div>
         </div>
 
         {error && <div style={{ color: t.danger, marginBottom: "16px" }}>❌ {error}</div>}

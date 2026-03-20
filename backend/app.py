@@ -11,8 +11,12 @@ from routes.admin_routes import admin_routes
 app = Flask(__name__)
 app.config.from_object(Config)
 
-# ✅ CORS fix — allow all origins
-CORS(app)
+# ✅ CORS fix — restrict to allowed origins
+CORS(app, resources={r"/api/*": {"origins": app.config.get("ALLOWED_ORIGINS", "*")}})
+
+# ✅ Rate Limiter Setup (Protection against brute force)
+from utils.limiter import limiter
+limiter.init_app(app)
 
 app.register_blueprint(auth_routes,    url_prefix="/api/auth")
 app.register_blueprint(kitchen_routes, url_prefix="/api/kitchens")

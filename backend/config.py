@@ -19,4 +19,7 @@ class Config:
 
     # ✅ Environment
     DEBUG = os.getenv("FLASK_ENV", "development") == "development"
- 
+
+    # ✅ CORS Origins
+    _origins = os.getenv("ALLOWED_ORIGINS", "*")
+    ALLOWED_ORIGINS = _origins if _origins == "*" else _origins.split(",")

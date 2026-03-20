@@ -163,7 +163,7 @@ const styles = {
   // Floating button
   floatBtn: {
     position: "fixed",
-    bottom: "28px",
+    bottom: "90px",
     right: "28px",
     zIndex: 1000,
     display: "flex",
@@ -188,7 +188,7 @@ const styles = {
   // Panel
   panel: {
     position: "fixed",
-    bottom: "90px",
+    bottom: "155px",
     right: "28px",
     zIndex: 999,
     width: "340px",

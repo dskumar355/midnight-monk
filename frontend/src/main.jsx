@@ -13,7 +13,7 @@ import { OrderProvider } from "./context/OrderContext.jsx";
 import { SupportProvider } from "./context/SupportContext.jsx";
 
 import "./styles/global.css";
-import "./styles/responsive.css"; // ✅ Mobile breakpoints
+import "./styles/Responsive.css" // ✅ Mobile breakpoints
 
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
 

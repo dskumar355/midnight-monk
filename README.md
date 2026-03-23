@@ -285,7 +285,7 @@ To test on your phone while running locally:
 
 ## 👨‍💻 Built By
 
-**[DHARAVATH SAI KUMAR]**
+**[SHRADDHA JAIN & TEAM]**
 
 ---
 

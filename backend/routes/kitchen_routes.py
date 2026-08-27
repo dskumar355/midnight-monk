@@ -8,13 +8,23 @@ from datetime import datetime
 kitchen_routes = Blueprint("kitchen_routes", __name__)
 
 # ─────────────────────────────────────────
-# 🍽️ GET ALL KITCHENS
+# 🍽️ GET ALL KITCHENS (only open)
 # GET /api/kitchens/all
-# Used by Kitchens.jsx to load kitchen cards
 # ─────────────────────────────────────────
 @kitchen_routes.route("/all", methods=["GET"])
 def get_kitchens():
     kitchens = list(kitchens_collection.find({"is_open": True}))
+    return jsonify([format_kitchen(k) for k in kitchens]), 200
+
+
+# ─────────────────────────────────────────
+# 🍽️ GET ALL KITCHENS (open + closed)
+# GET /api/kitchens/all-public
+# Used by Kitchens.jsx to show open/closed badges
+# ─────────────────────────────────────────
+@kitchen_routes.route("/all-public", methods=["GET"])
+def get_all_kitchens_public():
+    kitchens = list(kitchens_collection.find({}))
     return jsonify([format_kitchen(k) for k in kitchens]), 200
 
 
@@ -158,6 +168,8 @@ def seed_kitchens():
     kitchens = [
         create_kitchen("Night Bites",    "k1", tag="*open now, fast prep", rating=4.8),
         create_kitchen("Midnight Meals", "k2", tag="*open now, fast prep", rating=4.0),
+        create_kitchen("Curry & Co.",     "k3", owner="Aarav Shah", location="Alkapuri", tag="*comforting Indian classics", rating=4.7),
+        create_kitchen("The Wok Room",    "k4", owner="Meera Patel", location="Gotri", tag="*late-night Asian bowls", rating=4.6),
     ]
     seeded = []
     for k in kitchens:

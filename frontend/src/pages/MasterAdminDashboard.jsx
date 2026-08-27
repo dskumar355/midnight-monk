@@ -21,6 +21,8 @@ export default function MasterAdminDashboard() {
     { icon: "📦", title: "All Orders",          desc: "Monitor all kitchen orders across the platform", btnLabel: "VIEW ORDERS",     path: "/master/orders",   color: "#805ad5", bg: "#faf5ff", border: "#e9d8fd" },
     { icon: "📊", title: "Platform Analytics",  desc: "Revenue trends, food demand and insights",       btnLabel: "VIEW ANALYTICS",  path: "/master/analytics",color: "#2e7d32", bg: "#e8f5e9", border: "#a5d6a7" },
     { icon: "🎧", title: "Support Tickets",     desc: "View and resolve user or admin queries",         btnLabel: "VIEW TICKETS",    path: "/master/support",  color: "#e53e3e", bg: "#fff5f5", border: "#fed7d7" },
+    { icon: "🎟️", title: "Coupon Management",   desc: "Create and manage discount coupons & promos",    btnLabel: "MANAGE COUPONS",  path: "/master/coupons",  color: "#e67e22", bg: "#fff8ee", border: "#fde8b8" },
+    { icon: "🔐", title: "Security & Audit",     desc: "View login attempts, admin actions & security events", btnLabel: "VIEW AUDIT LOGS", path: "/master/audit", color: "#2d3748", bg: "#edf2f7", border: "#cbd5e0" },
   ];
 
   return (
@@ -101,7 +103,7 @@ export default function MasterAdminDashboard() {
 }
 
 const S = {
-  page:            {minHeight:"100vh",backgroundColor:"#f7f7f7",fontFamily:"'Segoe UI',sans-serif",display:"flex",flexDirection:"column"},
+  page:            {minHeight:"100vh",backgroundColor:"#FFFFFF",fontFamily:"'Segoe UI',sans-serif",display:"flex",flexDirection:"column"},
   header:          {backgroundColor:"#0f0f1a",padding:"16px 40px",display:"flex",alignItems:"center",justifyContent:"space-between"},
   headerLeft:      {display:"flex",alignItems:"center",gap:"14px"},
   avatar:          {width:"44px",height:"44px",borderRadius:"50%",backgroundColor:"#1a1a2e",border:"2px solid #F5A623",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px"},

@@ -38,6 +38,7 @@ def create_order(user, kitchen_id, items, total, address):
     Create a new order document for MongoDB.
     Matches OrderContext.jsx addOrder() fields exactly.
     """
+    user = user or {"name": "Guest Customer", "mobile": ""}
     partner = get_delivery_partner()  # random at creation time
 
     return {
@@ -105,8 +106,11 @@ def validate_order(user, kitchen_id, items, total, address):
     Validate order fields before saving.
     Returns (is_valid, error_message)
     """
-    if not user or not user.get("name"):
-        return False, "User info is required"
+    # Browsing and checkout support guests; authentication remains optional.
+    if not user:
+        user = {"name": "Guest Customer", "mobile": ""}
+    if not user.get("name"):
+        return False, "Customer name is required"
     if not kitchen_id or not kitchen_id.strip():
         return False, "Kitchen ID is required"
     if not items or len(items) == 0:

@@ -4,6 +4,7 @@ from database.db import orders_collection
 from models.order_model import create_order, format_order, validate_order, get_next_status
 from utils.helpers import require_auth, require_role
 from datetime import datetime
+from services.notification_service import notify_order_placed, notify_order_status, notify_kitchen_new_order
 
 order_routes = Blueprint("order_routes", __name__)
 
@@ -30,6 +31,13 @@ def create():
     result = orders_collection.insert_one(order)
     created = orders_collection.find_one({"_id": result.inserted_id})
 
+    # Send notifications
+    try:
+        notify_order_placed(user.get("mobile", ""), user.get("name", "Customer"), str(result.inserted_id), float(total))
+        notify_kitchen_new_order(kitchen_id, str(result.inserted_id), len(items), float(total))
+    except Exception:
+        pass  # non-critical
+
     return jsonify({
         "message": "Order placed successfully",
         "order":   format_order(created)
@@ -54,6 +62,12 @@ def get_user_orders(mobile):
 # ─────────────────────────────────────────
 @order_routes.route("/kitchen/<kitchen_id>", methods=["GET"])
 def get_kitchen_orders(kitchen_id):
+    payload, err = require_role(request, "kitchen_admin")
+    if err:
+        return jsonify(err[0]), err[1]
+    if payload.get("kitchenId") != kitchen_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
     orders = list(orders_collection.find({"kitchen_id": kitchen_id}).sort("createdAt", -1))
     return jsonify([format_order(o) for o in orders]), 200
 
@@ -76,6 +90,10 @@ def get_all_orders():
 # ─────────────────────────────────────────
 @order_routes.route("/status/<order_id>", methods=["PATCH"])
 def update_status(order_id):
+    payload, err = require_role(request, "kitchen_admin")
+    if err:
+        return jsonify(err[0]), err[1]
+
     data       = request.json or {}
     new_status = data.get("status", "").strip()
 
@@ -90,6 +108,8 @@ def update_status(order_id):
 
     if not order:
         return jsonify({"error": "Order not found"}), 404
+    if order.get("kitchen_id") != payload.get("kitchenId"):
+        return jsonify({"error": "You can only update orders for your own kitchen"}), 403
 
     # Validate status transition
     current_status = order.get("status", "Placed")
@@ -105,6 +125,29 @@ def update_status(order_id):
     )
 
     updated = orders_collection.find_one({"_id": ObjectId(order_id)})
+
+    # ✅ Emit real-time Socket.IO event
+    try:
+        from flask import current_app
+        emit_fn = getattr(current_app, "emit_order_update", None)
+        if emit_fn:
+            kitchen_id = updated.get("kitchen_id", "")
+            emit_fn(order_id, new_status, kitchen_id)
+    except Exception:
+        pass  # non-critical — don't fail the request
+
+    # Send SMS/Email notification
+    try:
+        order_user = updated.get("user", {})
+        notify_order_status(
+            order_user.get("mobile", ""),
+            order_user.get("name", "Customer"),
+            order_id,
+            new_status
+        )
+    except Exception:
+        pass  # non-critical
+
     return jsonify({
         "message": f"Order status updated to '{new_status}'",
         "order":   format_order(updated)

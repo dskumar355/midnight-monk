@@ -85,7 +85,7 @@ export default function MasterSupport() {
 }
 
 const S = {
-  page:     {minHeight:"100vh",backgroundColor:"#f7f7f7",fontFamily:"'Segoe UI',sans-serif",padding:"24px"},
+  page:     {minHeight:"100vh",backgroundColor:"#FFFFFF",fontFamily:"'Segoe UI',sans-serif",padding:"24px"},
   centered: {minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",color:"#666",fontFamily:"'Segoe UI',sans-serif"},
   header:   {display:"flex",alignItems:"center",gap:"16px",marginBottom:"24px"},
   back:     {background:"none",border:"1.5px solid #ddd",borderRadius:"8px",padding:"8px 14px",cursor:"pointer",fontSize:"13px",color:"#555"},

@@ -55,11 +55,22 @@ export const api = {
       body: JSON.stringify({ username, password }),
     }).then(handleResponse),
 
+  // Update user profile name
+  updateProfile: (name) =>
+    fetch(`${BASE_URL}/auth/update-profile`, {
+      method: "PATCH",
+      headers: getHeaders(),
+      body: JSON.stringify({ name }),
+    }).then(handleResponse),
+
   // ─────────────────────────────────────────
   // 🍽️ KITCHENS
   // ─────────────────────────────────────────
   getKitchens: () =>
     fetch(`${BASE_URL}/kitchens/all`, { headers: getHeaders() }).then(handleResponse),
+
+  getAllKitchens: () =>
+    fetch(`${BASE_URL}/kitchens/all-public`, { headers: getHeaders() }).then(handleResponse),
 
   getKitchen: (kitchenId) =>
     fetch(`${BASE_URL}/kitchens/${kitchenId}`, { headers: getHeaders() }).then(handleResponse),
@@ -187,4 +198,96 @@ export const api = {
   // ─────────────────────────────────────────
   getDashboardStats: () =>
     fetch(`${BASE_URL}/admin/dashboard-stats`, { headers: getHeaders() }).then(handleResponse),
+
+  // ─────────────────────────────────────────
+  // ⭐ RATINGS & REVIEWS
+  // ─────────────────────────────────────────
+  submitRating: (data) =>
+    fetch(`${BASE_URL}/ratings/submit`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse),
+
+  getKitchenRatings: (kitchenId) =>
+    fetch(`${BASE_URL}/ratings/kitchen/${kitchenId}`, { headers: getHeaders() }).then(handleResponse),
+
+  checkRating: (orderId) =>
+    fetch(`${BASE_URL}/ratings/check/${orderId}`, { headers: getHeaders() }).then(handleResponse),
+
+  // ─────────────────────────────────────────
+  // 🎟️ COUPONS
+  // ─────────────────────────────────────────
+  validateCoupon: (code, orderTotal) =>
+    fetch(`${BASE_URL}/coupons/validate`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ code, orderTotal }),
+    }).then(handleResponse),
+
+  useCoupon: (code) =>
+    fetch(`${BASE_URL}/coupons/use`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ code }),
+    }).then(handleResponse),
+
+  getAllCoupons: () =>
+    fetch(`${BASE_URL}/coupons/all`, { headers: getHeaders() }).then(handleResponse),
+
+  createCoupon: (data) =>
+    fetch(`${BASE_URL}/coupons/create`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse),
+
+  toggleCoupon: (id) =>
+    fetch(`${BASE_URL}/coupons/${id}/toggle`, {
+      method: "PATCH",
+      headers: getHeaders(),
+    }).then(handleResponse),
+
+  deleteCoupon: (id) =>
+    fetch(`${BASE_URL}/coupons/${id}`, {
+      method: "DELETE",
+      headers: getHeaders(),
+    }).then(handleResponse),
+
+  // ─────────────────────────────────────────
+  // 💳 PAYMENTS
+  // ─────────────────────────────────────────
+  createPaymentOrder: (amount, orderId) =>
+    fetch(`${BASE_URL}/payments/create-order`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ amount, orderId }),
+    }).then(handleResponse),
+
+  verifyPayment: (data) =>
+    fetch(`${BASE_URL}/payments/verify`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    }).then(handleResponse),
+
+  // ─────────────────────────────────────────
+  // 🔐 SECURITY / 2FA
+  // ─────────────────────────────────────────
+  requestOtp: (mobile) =>
+    fetch(`${BASE_URL}/security/request-otp`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ mobile }),
+    }).then(handleResponse),
+
+  verifyOtp: (mobile, otp, name) =>
+    fetch(`${BASE_URL}/security/verify-otp`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ mobile, otp, name }),
+    }).then(handleResponse),
+
+  getAuditLogs: (limit = 50) =>
+    fetch(`${BASE_URL}/security/audit-logs?limit=${limit}`, { headers: getHeaders() }).then(handleResponse),
 };

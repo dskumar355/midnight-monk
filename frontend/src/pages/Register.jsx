@@ -130,7 +130,7 @@ export default function Register() {
 const styles = {
   page: {
     minHeight: "100vh",
-    backgroundColor: "#f7f7f7",
+    backgroundColor: "#FFFCF8",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",

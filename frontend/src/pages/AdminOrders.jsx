@@ -84,7 +84,7 @@ export default function AdminOrders() {
 
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
                   {order.items?.map((item, i) => (
-                    <span key={i} style={{ backgroundColor: t.dark ? "#2a2a3e" : "#f7f7f7", border: `1px solid ${t.dark ? "#3a3a4e" : "#eee"}`, borderRadius: "6px", padding: "4px 10px", fontSize: "12px", color: t.subText }}>
+                    <span key={i} style={{ backgroundColor: "#FFFFFF", border: "1px solid #eee", borderRadius: "6px", padding: "4px 10px", fontSize: "12px", color: t.subText }}>
                       {item.name} ×{item.quantity}
                     </span>
                   ))}

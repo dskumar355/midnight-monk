@@ -15,6 +15,7 @@ frontend/.env
 # Node
 frontend/node_modules/
 node_modules/
+.vite/
 
 # Build output
 frontend/dist/

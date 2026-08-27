@@ -11,11 +11,13 @@ import { MasterAuthProvider } from "./context/MasterAuthContext.jsx";
 import { CartProvider } from "./context/CartContext.jsx";
 import { OrderProvider } from "./context/OrderContext.jsx";
 import { SupportProvider } from "./context/SupportContext.jsx";
+import { NotificationProvider } from './components/NotificationToast.jsx';
 
 import "./styles/global.css";
 import "./styles/Responsive.css" // ✅ Mobile breakpoints
 
 import ErrorBoundary from "./components/ErrorBoundary.jsx";
+import InstallPWA from "./components/InstallPWA.jsx";
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
@@ -28,7 +30,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                 <CartProvider>
                   <OrderProvider>
                     <SupportProvider>
-                      <App />
+                      <NotificationProvider>
+                        <App />
+                        <InstallPWA />
+                      </NotificationProvider>
                     </SupportProvider>
                   </OrderProvider>
                 </CartProvider>

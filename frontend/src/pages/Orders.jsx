@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useOrders } from "../context/OrderContext";
 import { useUserAuth } from "../context/UserAuthContext";
 import { useTheme } from "../context/ThemeContext";
+import { useCart } from "../context/CartContext";
+import { api } from "../services/api";
+import { subscribeToOrder } from "../services/socket";
+import { requestNotificationPermission, notifyOrderStatus } from "../services/pushNotifications";
 import Navbar from "../components/Navbar";
+import RatingModal from "../components/RatingModal";
 
 const STEPS = ["Placed", "Preparing", "Out for Delivery", "Delivered"];
 const STATUS_C = { Placed: "#3498db", Preparing: "#e67e22", "Out for Delivery": "#9b59b6", Delivered: "#27ae60" };
@@ -41,19 +46,89 @@ export default function Orders() {
   const t = useTheme();
   const { user, logout } = useUserAuth();
   const { orders, fetchUserOrders, loading } = useOrders();
+  const { clearCart, addToCart } = useCart();
   const [filter, setFilter] = useState("All");
   const [animIn, setAnimIn] = useState(false);
+  const [reorderToast, setReorderToast] = useState("");
+  const [ratingOrder, setRatingOrder] = useState(null); // order being rated
+  const [ratedOrderIds, setRatedOrderIds] = useState(new Set());
+  const [liveToast, setLiveToast] = useState(""); // socket update toast
+  const socketUnsubs = useRef([]);
+
+  const handleReorder = (order) => {
+    // Clear existing cart and load items from this order
+    clearCart();
+    const kitchenId = order.kitchenId || order.kitchen_id;
+    const kitchenName = order.kitchenName || order.kitchen_name || "Kitchen";
+    order.items?.forEach(item => {
+      // Add item quantity times
+      for (let i = 0; i < (item.quantity || 1); i++) {
+        addToCart({
+          id: item.id || item.menu_id,
+          name: item.name,
+          price: item.price,
+          kitchenId: kitchenId,
+          kitchen_id: kitchenId,
+        });
+      }
+    });
+    // Store kitchen selection
+    if (kitchenId) localStorage.setItem("selectedKitchen", kitchenId);
+    if (kitchenName) localStorage.setItem("selectedKitchenName", kitchenName);
+
+    setReorderToast(`🛒 ${order.items?.length} item${order.items?.length !== 1 ? "s" : ""} added to cart!`);
+    setTimeout(() => {
+      setReorderToast("");
+      navigate("/cart");
+    }, 1200);
+  };
 
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
     fetchUserOrders(user.mobile);
     setTimeout(() => setAnimIn(true), 100);
+    // Request push notification permission
+    requestNotificationPermission();
 
-    const interval = setInterval(() => {
-      fetchUserOrders(user.mobile);
-    }, 15000);
+    const interval = setInterval(() => fetchUserOrders(user.mobile), 15000);
     return () => clearInterval(interval);
   }, [user]);
+
+  // ── Subscribe to Socket.IO for each active order ──
+  useEffect(() => {
+    // Cleanup old subscriptions
+    socketUnsubs.current.forEach(fn => fn?.());
+    socketUnsubs.current = [];
+
+    const activeOrders = orders.filter(o => o.status !== "Delivered");
+    activeOrders.forEach(order => {
+      const unsub = subscribeToOrder(order.id, (data) => {
+        setLiveToast(`🔔 Order #${order.id.slice(-6).toUpperCase()}: ${data.status}`);
+        setTimeout(() => setLiveToast(""), 4000);
+        fetchUserOrders(user.mobile); // refresh order list
+        notifyOrderStatus(order.id, data.status); // Browser push notification
+      });
+      socketUnsubs.current.push(unsub);
+    });
+
+    return () => socketUnsubs.current.forEach(fn => fn?.());
+  }, [orders]);
+
+  // ── Check rated status for delivered orders ──
+  useEffect(() => {
+    const deliveredOrders = orders.filter(o => o.status === "Delivered");
+    deliveredOrders.forEach(async (order) => {
+      if (!ratedOrderIds.has(order.id)) {
+        try {
+          const res = await api.checkRating(order.id);
+          if (res.rated) {
+            setRatedOrderIds(prev => new Set([...prev, order.id]));
+          }
+        } catch { /* ignore */ }
+      }
+    });
+  }, [orders]);
+
 
   const filtered = filter === "All" ? orders : orders.filter(o => o.status === filter);
   const handleLogout = () => { logout(); navigate("/login"); };
@@ -67,32 +142,37 @@ export default function Orders() {
   );
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: t.bg, fontFamily: "'Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: "100vh", background: `radial-gradient(circle at top, ${t.dark ? "rgba(201,169,110,0.12)" : "rgba(201,169,110,0.12)"}, transparent 28%), ${t.bg}`, fontFamily: "'Inter', sans-serif" }}>
       <Navbar title="My Orders" backPath="/kitchens" backLabel="Home" onLogout={handleLogout}
         rightContent={
-          <button onClick={() => navigate("/kitchens")} style={{ backgroundColor: t.accent, color: "#fff", border: "none", borderRadius: "8px", padding: "6px 14px", fontSize: "12px", fontWeight: "700", cursor: "pointer", fontFamily: "'Segoe UI',sans-serif" }}>
+          <button onClick={() => navigate("/kitchens")} style={{ backgroundColor: t.accent, color: "#111", border: "none", borderRadius: "10px", padding: "8px 14px", fontSize: "12px", fontWeight: "800", cursor: "pointer" }}>
             + Order More
           </button>
         }
       />
 
-      {/* Inject Leaflet CSS */}
       <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 
-      <div style={{ padding: "24px", maxWidth: "700px", margin: "0 auto" }}>
-        <div style={{ marginBottom: "20px", opacity: animIn ? 1 : 0, transform: animIn ? "translateY(0)" : "translateY(16px)", transition: "all 0.4s ease" }}>
-          <h2 style={{ fontSize: "22px", fontWeight: "900", color: t.text, margin: "0 0 4px 0" }}>Your Orders 📦</h2>
-          <p style={{ fontSize: "13px", color: t.subText, margin: 0 }}>{orders.length} order{orders.length !== 1 ? "s" : ""} total</p>
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "28px 24px 56px" }}>
+        <div style={{ marginBottom: "20px", opacity: animIn ? 1 : 0, transform: animIn ? "translateY(0)" : "translateY(12px)", transition: "all 0.4s ease" }}>
+          <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: t.accent }}>Your experience</div>
+          <h2 style={{ fontSize: "52px", fontWeight: "700", color: t.text, margin: "10px 0 6px 0", lineHeight: 0.9 }}>Your Orders</h2>
+          <p style={{ fontSize: "14px", color: t.textSoft, margin: 0 }}>{orders.length} order{orders.length !== 1 ? "s" : ""} total</p>
         </div>
 
-        {/* Filter Tabs */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
-          {["All", "Placed", "Preparing", "Out for Delivery", "Delivered"].map(f => (
+        <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
+          {['All', 'Placed', 'Preparing', 'Out for Delivery', 'Delivered'].map(f => (
             <button key={f} onClick={() => setFilter(f)} style={{
-              padding: "7px 14px", borderRadius: "20px", border: "none", cursor: "pointer",
-              fontSize: "11px", fontWeight: "700", fontFamily: "'Segoe UI',sans-serif",
-              backgroundColor: filter === f ? (STATUS_C[f] || t.accent) : (t.dark ? "#2a2a3e" : "#f0f0f0"),
-              color: filter === f ? "#fff" : t.subText, transition: "all 0.2s",
+              padding: "10px 16px",
+              borderRadius: "999px",
+              border: filter === f ? "1px solid rgba(201,169,110,0.25)" : `1px solid ${t.border}`,
+              background: filter === f ? t.accentSoft : (t.dark ? "rgba(255,255,255,0.02)" : "rgba(17,17,17,0.02)"),
+              color: filter === f ? t.accentText : t.textSoft,
+              cursor: "pointer",
+              fontSize: "11px",
+              fontWeight: "800",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
             }}>{f}</button>
           ))}
         </div>
@@ -100,17 +180,17 @@ export default function Orders() {
         {filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0", display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
             <span style={{ fontSize: "64px" }}>🛵</span>
-            <p style={{ fontSize: "18px", fontWeight: "800", color: t.text, margin: 0 }}>No orders here</p>
-            <p style={{ fontSize: "13px", color: t.subText, margin: 0 }}>You haven't ordered anything yet</p>
-            <button onClick={() => navigate("/kitchens")} style={{ backgroundColor: t.accent, color: "#fff", border: "none", borderRadius: "10px", padding: "13px 28px", fontSize: "14px", fontWeight: "700", cursor: "pointer", boxShadow: "0 4px 14px rgba(245,166,35,0.4)", marginTop: "8px" }}>
+            <p style={{ fontSize: "22px", fontWeight: "800", color: t.text, margin: 0 }}>No orders here</p>
+            <p style={{ fontSize: "13px", color: t.textSoft, margin: 0 }}>You haven't ordered anything yet</p>
+            <button onClick={() => navigate("/kitchens")} style={{ background: t.accent, color: "#111", border: "none", borderRadius: "12px", padding: "13px 28px", fontSize: "14px", fontWeight: "800", cursor: "pointer", marginTop: "8px" }}>
               🍽️ Explore Kitchens
             </button>
           </div>
         ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+          <div style={{ display: "grid", gap: "18px" }}>
             {filtered.map((order, idx) => (
-              <div key={order.id} style={{ opacity: animIn ? 1 : 0, transform: animIn ? "translateY(0)" : "translateY(20px)", transition: `all 0.4s ease ${idx * 0.08}s` }}>
-                <OrderCard order={order} t={t} />
+              <div key={order.id} style={{ opacity: animIn ? 1 : 0, transform: animIn ? "translateY(0)" : "translateY(12px)", transition: `all 0.4s ease ${idx * 0.08}s` }}>
+                <OrderCard order={order} t={t} onReorder={handleReorder} onRate={() => setRatingOrder(order)} isRated={ratedOrderIds.has(order.id)} />
               </div>
             ))}
           </div>
@@ -118,18 +198,30 @@ export default function Orders() {
 
         {filtered.length > 0 && (
           <div style={{ textAlign: "center", marginTop: "28px", paddingBottom: "20px" }}>
-            <button onClick={() => navigate("/kitchens")} style={{
-              backgroundColor: "transparent", color: t.accent, border: `2px solid ${t.accent}`,
-              borderRadius: "10px", padding: "12px 32px", fontSize: "14px", fontWeight: "700",
-              cursor: "pointer", fontFamily: "'Segoe UI',sans-serif", transition: "all 0.2s",
-            }}
-              onMouseEnter={e => { e.currentTarget.style.backgroundColor = t.accent; e.currentTarget.style.color = "#fff"; }}
-              onMouseLeave={e => { e.currentTarget.style.backgroundColor = "transparent"; e.currentTarget.style.color = t.accent; }}
-            >🛵 Order More Food</button>
+            <button onClick={() => navigate("/kitchens")} style={{ background: "transparent", color: t.accent, border: `1px solid ${t.borderStrong}`, borderRadius: "12px", padding: "12px 26px", fontSize: "14px", fontWeight: "800", cursor: "pointer" }}>
+              🛵 Order More Food
+            </button>
           </div>
         )}
       </div>
-      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}`}</style>
+
+      <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}} @keyframes slideUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}`}</style>
+
+      {reorderToast && (
+        <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", backgroundColor: "#27ae60", color: "#fff", padding: "12px 24px", borderRadius: "12px", fontSize: "14px", fontWeight: "700", boxShadow: "0 8px 24px rgba(39,174,96,0.4)", zIndex: 9999, animation: "slideUp 0.3s ease" }}>
+          {reorderToast}
+        </div>
+      )}
+
+      {liveToast && (
+        <div style={{ position: "fixed", top: "80px", right: "16px", backgroundColor: "#3498db", color: "#fff", padding: "12px 18px", borderRadius: "12px", fontSize: "13px", fontWeight: "700", boxShadow: "0 8px 24px rgba(52,152,219,0.4)", zIndex: 9999, animation: "slideUp 0.3s ease", maxWidth: "280px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "16px" }}>🔔</span> {liveToast}
+        </div>
+      )}
+
+      {ratingOrder && (
+        <RatingModal order={ratingOrder} t={t} onClose={() => setRatingOrder(null)} onSubmitted={() => { setRatedOrderIds(prev => new Set([...prev, ratingOrder.id])); }} />
+      )}
     </div>
   );
 }
@@ -137,11 +229,12 @@ export default function Orders() {
 // ═══════════════════════════════════════════════
 //  ORDER CARD
 // ═══════════════════════════════════════════════
-function OrderCard({ order, t }) {
+function OrderCard({ order, t, onReorder, onRate, isRated }) {
   const stepIdx = STEPS.indexOf(order.status);
   const color = STATUS_C[order.status] || "#888";
   const isActive = order.status !== "Delivered";
-  const showMap = order.status === "Out for Delivery" || order.status === "Preparing" || order.status === "Placed";
+  // A rider is only dispatched after the kitchen marks the order out for delivery.
+  const showMap = order.status === "Out for Delivery";
 
   const riderName = order.riderName || "Delivery Partner";
   const riderPhone = order.riderPhone || "9876543210";
@@ -243,10 +336,64 @@ function OrderCard({ order, t }) {
         </div>
 
         {/* Address */}
-        <div style={{ backgroundColor: t.dark ? "#1a2a1a" : "#f0fdf4", borderRadius: "12px", padding: "12px 14px", border: `1px solid ${t.dark ? "#2a4a2a" : "#bbf7d0"}` }}>
+        <div style={{ backgroundColor: t.dark ? "#1a2a3a" : "#f0fdf4", borderRadius: "12px", padding: "12px 14px", border: `1px solid ${t.dark ? "#2a4a2a" : "#bbf7d0"}`, marginBottom: "14px" }}>
           <p style={{ fontSize: "10px", fontWeight: "800", color: t.mutedText, margin: "0 0 6px 0", letterSpacing: "0.8px" }}>DELIVERY ADDRESS</p>
           <p style={{ fontSize: "13px", color: t.text, fontWeight: "600", margin: 0 }}>📍 {order.address}</p>
         </div>
+
+        {/* ── 🔁 REORDER BUTTON ── */}
+        {order.status === "Delivered" && (
+          <div style={{ display: "flex", gap: "10px" }}>
+            {/* Reorder */}
+            <button
+              onClick={() => onReorder(order)}
+              style={{
+                flex: 1, padding: "12px",
+                background: `linear-gradient(135deg, ${t.accent}, #e67e22)`,
+                color: "#fff", border: "none", borderRadius: "12px",
+                fontSize: "13px", fontWeight: "800", cursor: "pointer",
+                fontFamily: "'Segoe UI', sans-serif",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                boxShadow: `0 4px 16px ${t.accent}44`,
+                transition: "transform 0.15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"}
+              onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+            >
+              🔁 Reorder
+            </button>
+
+            {/* Rate */}
+            {isRated ? (
+              <div style={{
+                flex: 1, padding: "12px",
+                backgroundColor: "#27ae6022", border: "1.5px solid #27ae6044",
+                borderRadius: "12px", display: "flex", alignItems: "center",
+                justifyContent: "center", gap: "6px",
+              }}>
+                <span style={{ fontSize: "13px", fontWeight: "700", color: "#27ae60" }}>✅ Rated</span>
+              </div>
+            ) : (
+              <button
+                onClick={() => onRate(order)}
+                style={{
+                  flex: 1, padding: "12px",
+                  background: "linear-gradient(135deg, #9b59b6, #8e44ad)",
+                  color: "#fff", border: "none", borderRadius: "12px",
+                  fontSize: "13px", fontWeight: "800", cursor: "pointer",
+                  fontFamily: "'Segoe UI', sans-serif",
+                  display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                  boxShadow: "0 4px 16px #9b59b644",
+                  transition: "transform 0.15s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = "translateY(-1px)"}
+                onMouseLeave={e => e.currentTarget.style.transform = "translateY(0)"}
+              >
+                ⭐ Rate
+              </button>
+            )}
+          </div>
+        )}
 
       </div>
     </div>

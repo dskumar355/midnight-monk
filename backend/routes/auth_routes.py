@@ -205,6 +205,53 @@ def verify():
 
 
 # ─────────────────────────────────────────
+# ✏️ UPDATE USER PROFILE (name)
+# PATCH /api/auth/update-profile
+# ─────────────────────────────────────────
+@auth_routes.route("/update-profile", methods=["PATCH"])
+def update_profile():
+    token = request.headers.get("Authorization", "").replace("Bearer ", "")
+    if not token:
+        return jsonify({"error": "No token provided"}), 401
+
+    payload = verify_token(token)
+    if not payload or payload.get("role") != "user":
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.json or {}
+    new_name = data.get("name", "").strip()
+
+    if not new_name or len(new_name) < 2:
+        return jsonify({"error": "Name must be at least 2 characters"}), 400
+
+    mobile = payload.get("mobile")
+    result = users_collection.update_one(
+        {"mobile": mobile},
+        {"$set": {"name": new_name, "updatedAt": datetime.utcnow().isoformat()}}
+    )
+
+    if result.matched_count == 0:
+        return jsonify({"error": "User not found"}), 404
+
+    user = users_collection.find_one({"mobile": mobile})
+    formatted = format_user(user)
+
+    # Generate new token with updated name
+    new_token = generate_token({
+        "id":     formatted["id"],
+        "name":   formatted["name"],
+        "mobile": formatted["mobile"],
+        "role":   "user"
+    })
+
+    return jsonify({
+        "message": "Profile updated successfully",
+        "token":   new_token,
+        "user":    formatted
+    }), 200
+
+
+# ─────────────────────────────────────────
 # 🌱 SEED MASTER ADMIN (run once)
 # POST /api/auth/seed-master
 # ─────────────────────────────────────────

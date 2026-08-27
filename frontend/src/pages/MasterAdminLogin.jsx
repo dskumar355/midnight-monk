@@ -45,7 +45,7 @@ export default function MasterAdminLogin() {
 }
 
 const S = {
-  page:  {minHeight:"100vh",background:"linear-gradient(135deg,#0f0f1a,#1a1a2e)",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',sans-serif"},
+  page:  {minHeight:"100vh",backgroundColor:"#FFFCF8",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Segoe UI',sans-serif"},
   card:  {backgroundColor:"#1a1a2e",border:"1px solid rgba(245,166,35,0.3)",borderRadius:"20px",padding:"40px 36px",width:"100%",maxWidth:"400px",display:"flex",flexDirection:"column",gap:"16px",boxShadow:"0 20px 60px rgba(0,0,0,0.4)"},
   icon:  {fontSize:"40px",textAlign:"center"},
   title: {fontSize:"22px",fontWeight:"900",color:"#fff",margin:0,textAlign:"center"},

@@ -8,7 +8,7 @@ import Navbar from "../components/Navbar";
 import SupportWidget from "../components/SupportWidget";
 
 const CATEGORIES = ["All", "Veg", "Non Veg", "Fast Food", "Drinks"];
-const CAT_COLORS = { Veg: "#27ae60", "Non Veg": "#e74c3c", "Fast Food": "#e67e22", Drinks: "#3498db", "Main Course": "#9b59b6", Snacks: "#f39c12" };
+const CAT_COLORS = { Veg: "#91C3A8", "Non Veg": "#D97C6C", "Fast Food": "#E2C992", Drinks: "#C9A96E", "Main Course": "#B89AF5", Snacks: "#F4C98A" };
 
 export default function Menu() {
   const navigate = useNavigate();
@@ -28,106 +28,123 @@ export default function Menu() {
     api.getMenu(kitchenId)
       .then(setItems)
       .finally(() => setLoading(false));
-  }, [kitchenId]);
+  }, [kitchenId, navigate]);
 
   const filtered = items.filter(i => {
     const matchCat = category === "All" || i.category === category;
     const matchSearch = i.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
   });
+
   const getQty = (id) => cart.find(i => i.id === id)?.quantity || 0;
   const handleLogout = () => { logout(); navigate("/login"); };
 
   if (loading) return (
-    <div style={{ minHeight: "100vh", backgroundColor: t.bg, display: "flex", alignItems: "center", justifyContent: "center", color: t.text, fontFamily: "'Segoe UI',sans-serif" }}>
-      🌙 Loading menu...
+    <div style={{ minHeight: "100vh", background: t.bg, display: "flex", alignItems: "center", justifyContent: "center", color: t.text, fontFamily: "'Inter', sans-serif" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "44px", marginBottom: "12px" }}>☾</div>
+        <div style={{ fontSize: "16px", fontWeight: "700", letterSpacing: "0.08em", textTransform: "uppercase", color: t.accent }}>Loading menu</div>
+      </div>
     </div>
   );
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: t.bg, fontFamily: "'Segoe UI',sans-serif", paddingBottom: "90px" }}>
-      <Navbar title={kitchenName || "Menu"} backPath="/kitchens" backLabel="Kitchens" onLogout={handleLogout}
-        rightContent={
-          <span style={{ fontSize: "13px", color: t.subText }}>{items.length} items</span>
-        }
-      />
+    <div style={{ minHeight: "100vh", background: `radial-gradient(circle at top, ${t.dark ? "rgba(201,169,110,0.1)" : "rgba(201,169,110,0.12)"}, transparent 28%), ${t.bg}`, color: t.text, paddingBottom: "110px" }}>
+      <Navbar title={kitchenName || "Menu"} backPath="/kitchens" backLabel="Kitchens" onLogout={handleLogout} rightContent={<span style={{ color: t.textSoft, fontSize: "12px", letterSpacing: "0.08em", textTransform: "uppercase" }}>{items.length} items</span>} />
 
-      <div style={{ padding: "20px 24px" }}>
-        {/* Search Bar */}
-        <div style={{ marginBottom: "16px" }}>
-          <input
-            type="text"
-            placeholder="Search menu..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ width: "100%", padding: "12px 16px", borderRadius: "12px", border: t.cardBorder, backgroundColor: t.card, color: t.text, fontSize: "14px", outline: "none", fontFamily: "'Segoe UI',sans-serif", boxSizing: "border-box" }}
-          />
+      <div style={{ maxWidth: "1240px", margin: "0 auto", padding: "28px 24px 0" }}>
+        <div style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: "28px", overflow: "hidden", boxShadow: t.shadow, marginBottom: "24px" }}>
+          <div style={{ position: "relative" }}>
+            <img src={items[0]?.image || "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80"} alt={kitchenName} style={{ width: "100%", height: "250px", objectFit: "cover", display: "block" }} />
+            <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(8,9,11,0.22), rgba(8,9,11,0.7))" }} />
+          </div>
+
+          <div style={{ padding: "22px 24px 26px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "10px" }}>
+              <div>
+                <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: t.accent }}>Kitchen</div>
+                <h1 style={{ margin: "8px 0 0", fontSize: "54px", lineHeight: 0.9, color: t.text }}>{kitchenName || "Late Night Kitchen"}</h1>
+              </div>
+              <div style={{ background: t.accentSoft, border: `1px solid ${t.border}`, borderRadius: "14px", padding: "10px 12px", color: t.accentText, fontWeight: "800" }}>★ 4.8</div>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", color: t.mutedText, fontSize: "13px", fontWeight: "600" }}>
+              <span>⚡ 20-30 min</span>
+              <span>📍 Downtown</span>
+              <span>💳 Premium quality</span>
+            </div>
+          </div>
         </div>
 
-        {/* Category Filter */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
+        <div style={{ marginBottom: "20px" }}>
+          <div style={{ position: "relative" }}>
+            <span style={{ position: "absolute", left: "18px", top: "50%", transform: "translateY(-50%)", fontSize: "16px" }}>⌕</span>
+            <input
+              type="text"
+              placeholder="Search menu items..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ width: "100%", padding: "18px 18px 18px 52px", borderRadius: "16px", border: `1px solid ${t.border}`, background: t.dark ? "rgba(8,9,11,0.5)" : "rgba(255,255,255,0.8)", color: t.text, fontSize: "14px", outline: "none", boxShadow: search ? `0 0 0 4px ${t.accentSoft}` : "none" }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "24px" }}>
           {CATEGORIES.map(c => (
             <button key={c} onClick={() => setCategory(c)} style={{
-              padding: "7px 16px", borderRadius: "20px", cursor: "pointer",
-              fontSize: "13px", fontWeight: "700", border: "none",
-              backgroundColor: category === c ? t.accent : (t.dark ? "#2a2a3e" : "#f0f0f0"),
-              color: category === c ? "#fff" : t.subText,
-              fontFamily: "'Segoe UI',sans-serif",
+              padding: "10px 16px",
+              borderRadius: "12px",
+              border: category === c ? "1px solid rgba(201,169,110,0.18)" : `1px solid ${t.border}`,
+              background: category === c ? t.accentSoft : (t.dark ? "rgba(255,255,255,0.02)" : "rgba(17,17,17,0.02)"),
+              color: category === c ? t.accentText : t.textSoft,
+              fontWeight: "800",
+              cursor: "pointer",
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              fontSize: "11px",
             }}>{c}</button>
           ))}
         </div>
 
-        {/* Grid */}
-        <div className="mm-grid-menu-items">
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "20px" }}>
           {filtered.map(item => (
-            <div key={item.id} style={{ backgroundColor: t.card, borderRadius: "16px", border: t.cardBorder, boxShadow: t.shadow, padding: "20px", display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "16px" }}>
+            <div key={item.id} style={{ background: t.card, border: `1px solid ${t.border}`, borderRadius: "22px", boxShadow: t.shadow, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+              <img src={item.image || "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=1200&q=80"} alt={item.name} style={{ width: "100%", height: "220px", objectFit: "cover" }} />
 
-              {/* Left Side: Info */}
-              <div style={{ flex: 1, paddingRight: "10px" }}>
-                <div style={{ display: "inline-block", backgroundColor: CAT_COLORS[item.category] + "22", color: CAT_COLORS[item.category] || "#888", fontSize: "10px", fontWeight: "800", padding: "4px 8px", borderRadius: "6px", marginBottom: "8px", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-                  {item.category}
-                </div>
-                <h3 style={{ fontSize: "16px", fontWeight: "800", color: t.text, margin: "0 0 6px 0" }}>{item.name}</h3>
-                <span style={{ fontSize: "15px", fontWeight: "800", color: t.text, display: "block", marginBottom: "8px" }}>₹{item.price}</span>
-                {item.description && <p style={{ fontSize: "13px", color: t.subText, margin: "0 0 8px 0", lineHeight: "1.4" }}>{item.description}</p>}
-                {item.calories && <p style={{ fontSize: "11px", color: t.mutedText, margin: "0" }}>🔥 {item.calories} kcal {item.protein ? `· 💪 ${item.protein}g` : ""}</p>}
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 18px 0" }}>
+                <div style={{ background: `${CAT_COLORS[item.category] || t.accent}22`, color: CAT_COLORS[item.category] || t.accentText, borderRadius: "999px", padding: "6px 10px", fontSize: "10px", fontWeight: "800", letterSpacing: "0.08em", textTransform: "uppercase" }}>{item.category || "Signature"}</div>
+                <div style={{ color: t.accent, fontWeight: "900", fontSize: "18px" }}>₹{item.price}</div>
               </div>
 
-              {/* Right Side: Image & Add Button */}
-              <div style={{ position: "relative", width: "120px", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                {item.image ? (
-                  <img src={item.image} alt={item.name} style={{ width: "120px", height: "120px", objectFit: "cover", borderRadius: "16px", backgroundColor: t.dark ? "#1a1a2e" : "#eee", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }} />
-                ) : (
-                  <div style={{ width: "120px", height: "120px", borderRadius: "16px", backgroundColor: t.dark ? "#2a2a3e" : "#f5f5f5", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "32px", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>🍲</div>
-                )}
+              <div style={{ padding: "16px 18px 18px" }}>
+                <h3 style={{ margin: "0 0 8px", fontSize: "30px", color: t.text }}>{item.name}</h3>
+                <p style={{ margin: "0 0 16px", color: t.textSoft, fontSize: "13px", lineHeight: 1.6 }}>{item.description || "Carefully prepared to elevate your after-dark craving."}</p>
 
-                <div style={{ marginTop: "-16px", zIndex: 2 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div style={{ color: t.mutedText, fontSize: "12px", fontWeight: "700" }}>{item.calories ? `🔥 ${item.calories} kcal` : "Freshly made"}</div>
                   {getQty(item.id) > 0 ? (
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "90px", backgroundColor: t.dark ? "#2a2a3e" : "#fff", borderRadius: "8px", padding: "6px 8px", border: `1.5px solid ${t.accent}`, boxShadow: "0 4px 8px rgba(0,0,0,0.1)" }}>
-                      <button onClick={() => updateQuantity(item.id, getQty(item.id) - 1)} style={{ background: "none", border: "none", fontSize: "16px", cursor: "pointer", color: t.accent, fontWeight: "900", padding: 0 }}>−</button>
-                      <span style={{ fontSize: "14px", fontWeight: "800", color: t.accent }}>{getQty(item.id)}</span>
-                      <button onClick={() => addToCart(item)} style={{ background: "none", border: "none", fontSize: "16px", cursor: "pointer", color: t.accent, fontWeight: "900", padding: 0 }}>+</button>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 12px", borderRadius: "12px", background: t.accentSoft, border: `1px solid ${t.border}` }}>
+                      <button onClick={() => updateQuantity(item.id, getQty(item.id) - 1)} style={{ background: "transparent", border: "none", color: t.accentText, fontSize: "20px", cursor: "pointer", fontWeight: "800", padding: 0 }}>−</button>
+                      <span style={{ minWidth: "18px", textAlign: "center", color: t.text, fontWeight: "800" }}>{getQty(item.id)}</span>
+                      <button onClick={() => addToCart(item)} style={{ background: "transparent", border: "none", color: t.accentText, fontSize: "20px", cursor: "pointer", fontWeight: "800", padding: 0 }}>+</button>
                     </div>
                   ) : (
-                    <button onClick={() => addToCart(item)} style={{ width: "90px", backgroundColor: t.dark ? "#1a1a2e" : "#fff", color: t.accent, border: `1.5px solid ${t.dark ? t.accent : "#e0e0e0"}`, borderRadius: "8px", padding: "8px 0", fontSize: "14px", fontWeight: "900", cursor: "pointer", boxShadow: "0 4px 8px rgba(0,0,0,0.1)", textAlign: "center", transition: "all 0.2s" }}>
-                      ADD
-                    </button>
+                    <button onClick={() => addToCart(item)} style={{ background: t.accent, color: "#111", border: "none", borderRadius: "12px", padding: "10px 18px", fontWeight: "800", cursor: "pointer" }}>Add</button>
                   )}
                 </div>
               </div>
-
             </div>
           ))}
         </div>
       </div>
 
-      {/* Cart Bar */}
       {totalItems > 0 && (
-        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, backgroundColor: t.dark ? "#1a1a2e" : "#1a1a2e", color: "#fff", padding: "16px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 -4px 20px rgba(0,0,0,0.2)" }}>
-          <span style={{ fontSize: "14px" }}>{totalItems} item{totalItems > 1 ? "s" : ""} · ₹{totalPrice.toFixed(2)}</span>
-          <button onClick={() => navigate("/cart")} style={{ backgroundColor: t.accent, color: "#fff", border: "none", borderRadius: "8px", padding: "10px 20px", fontSize: "14px", fontWeight: "700", cursor: "pointer" }}>
-            View Cart →
-          </button>
+        <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: "linear-gradient(180deg, rgba(17,19,24,0.9), rgba(8,9,11,0.96))", borderTop: `1px solid ${t.border}`, padding: "18px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 -14px 30px rgba(0,0,0,0.22)" }}>
+          <div>
+            <div style={{ color: t.textSoft, fontSize: "11px", letterSpacing: "0.08em", textTransform: "uppercase" }}>Cart total</div>
+            <div style={{ color: "#fff", fontSize: "18px", fontWeight: "800" }}>{totalItems} item{totalItems > 1 ? "s" : ""} · ₹{totalPrice.toFixed(2)}</div>
+          </div>
+          <button onClick={() => navigate("/cart")} style={{ background: t.accent, color: "#111", border: "none", borderRadius: "12px", padding: "12px 18px", fontWeight: "800", cursor: "pointer" }}>View cart →</button>
         </div>
       )}
 

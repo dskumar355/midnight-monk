@@ -1,3 +1,21 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+/* Root variables */
+:root {
+  --mm-bg: #FFFFFF;
+  --mm-bg-soft: #FFFFFF;
+  --mm-panel: #FFFFFF;
+  --mm-card: #FFFFFF;
+  --mm-text: #1A1A1A;
+  --mm-text-soft: #5F5F5F;
+  --mm-muted: #777777;
+  --mm-accent: #C9783E;
+  --mm-accent-deep: #9F4F2D;
+  --mm-warm: #E8B878;
+  --mm-peach: #E7B99A;
+  --mm-border: rgba(159, 79, 45, 0.14);
+}
+
 /* Global reset */
 * {
   margin: 0;
@@ -5,32 +23,91 @@
   box-sizing: border-box;
 }
 
-/* Body */
-body {
-  font-family: Arial, Helvetica, sans-serif;
-  background-color: #121212;
-  color: #ffffff;
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
 }
 
-/* Links */
-a {
-  color: #ffcc00;
-  text-decoration: none;
+/* Body */
+body {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  background: #FFFFFF;
+  color: var(--mm-text);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Images */
+img {
+  max-width: 100%;
+  display: block;
+}
+
+/* Form elements */
+button,
+input,
+textarea {
+  font: inherit;
 }
 
 /* Buttons */
 button {
   padding: 8px 14px;
-  border: none;
+  border: 1px solid rgba(159, 79, 45, 0.14);
   border-radius: 6px;
   cursor: pointer;
-  background-color: #ffcc00;
-  color: #000;
+  background-color: #FFFFFF;
+  color: #1A1A1A;
   font-weight: bold;
+  transition: all 0.2s ease;
 }
 
 button:hover {
-  opacity: 0.9;
+  opacity: 0.96;
+}
+
+/* Headings */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  letter-spacing: -0.03em;
+  line-height: 0.96;
+}
+
+/* Text elements */
+p,
+span,
+button,
+input,
+textarea,
+label,
+li,
+a {
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+/* Selection */
+::selection {
+  background: rgba(201, 120, 62, 0.18);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(201, 120, 62, 0.42);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(41,35,30,0.05);
 }
 
 /* Containers */
@@ -40,7 +117,7 @@ button:hover {
 
 /* Cards */
 .card {
-  background: #1e1e1e;
+  background: #FFFFFF;
   padding: 16px;
   margin-bottom: 12px;
   border-radius: 8px;

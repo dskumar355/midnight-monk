@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from bson import ObjectId
 from database.db import menu_collection
 from models.menu_model import create_menu_item, format_menu_item, validate_menu_item
-from utils.helpers import require_role
+from utils.helpers import require_auth, require_role
 from datetime import datetime
 
 menu_routes = Blueprint("menu_routes", __name__)
@@ -16,7 +16,18 @@ menu_routes = Blueprint("menu_routes", __name__)
 def get_menu(kitchen_id):
     category = request.args.get("category")  # optional filter ?category=Veg
 
-    query = {"kitchen_id": kitchen_id, "available": True}
+    # Customers only receive orderable cards. A kitchen admin needs every card,
+    # including disabled ones, to manage availability from the kitchen dashboard.
+    payload, _ = require_auth(request)
+    can_manage_menu = (
+        payload
+        and payload.get("role") == "kitchen_admin"
+        and payload.get("kitchenId") == kitchen_id
+    ) or (payload and payload.get("role") == "master_admin")
+
+    query = {"kitchen_id": kitchen_id}
+    if not can_manage_menu:
+        query["available"] = True
     if category and category.lower() != "all":
         query["category"] = category
 
@@ -46,6 +57,9 @@ def add_item():
     discount   = data.get("discount", 0)
     image      = data.get("image_url") or data.get("image")
 
+    if kitchen_id != payload.get("kitchenId"):
+        return jsonify({"error": "You can only add items to your own kitchen"}), 403
+
     # Validate
     is_valid, error = validate_menu_item(name, price, kitchen_id, category)
     if not is_valid:
@@ -74,6 +88,16 @@ def update_item(item_id):
     data = request.json or {}
     update_fields = {}
 
+    try:
+        item = menu_collection.find_one({"_id": ObjectId(item_id)})
+    except Exception:
+        return jsonify({"error": "Invalid item ID"}), 400
+
+    if not item:
+        return jsonify({"error": "Menu item not found"}), 404
+    if item.get("kitchen_id") != payload.get("kitchenId"):
+        return jsonify({"error": "You can only edit items in your own kitchen"}), 403
+
     if "name" in data:        update_fields["food_name"]   = data["name"].strip()
     if "price" in data:       update_fields["price"]       = float(data["price"])
     if "category" in data:    update_fields["category"]    = data["category"]
@@ -87,16 +111,10 @@ def update_item(item_id):
 
     update_fields["updatedAt"] = datetime.utcnow().isoformat()
 
-    try:
-        result = menu_collection.update_one(
-            {"_id": ObjectId(item_id)},
-            {"$set": update_fields}
-        )
-    except Exception:
-        return jsonify({"error": "Invalid item ID"}), 400
-
-    if result.matched_count == 0:
-        return jsonify({"error": "Menu item not found"}), 404
+    menu_collection.update_one(
+        {"_id": ObjectId(item_id)},
+        {"$set": update_fields}
+    )
 
     updated = menu_collection.find_one({"_id": ObjectId(item_id)})
     return jsonify({
@@ -116,12 +134,16 @@ def delete_item(item_id):
         return jsonify(err[0]), err[1]
 
     try:
-        result = menu_collection.delete_one({"_id": ObjectId(item_id)})
+        item = menu_collection.find_one({"_id": ObjectId(item_id)})
     except Exception:
         return jsonify({"error": "Invalid item ID"}), 400
 
-    if result.deleted_count == 0:
+    if not item:
         return jsonify({"error": "Menu item not found"}), 404
+    if item.get("kitchen_id") != payload.get("kitchenId"):
+        return jsonify({"error": "You can only delete items in your own kitchen"}), 403
+
+    menu_collection.delete_one({"_id": ObjectId(item_id)})
 
     return jsonify({"message": "Menu item deleted successfully"}), 200
 
@@ -143,6 +165,8 @@ def toggle_availability(item_id):
 
     if not item:
         return jsonify({"error": "Menu item not found"}), 404
+    if item.get("kitchen_id") != payload.get("kitchenId"):
+        return jsonify({"error": "You can only change items in your own kitchen"}), 403
 
     new_status = not item.get("available", True)
     menu_collection.update_one(

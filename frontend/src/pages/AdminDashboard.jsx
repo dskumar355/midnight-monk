@@ -11,6 +11,8 @@ export default function AdminDashboard() {
   const t = useTheme();
   const { admin, logout } = useAdminAuth();
   const [orders, setOrders] = useState([]);
+  const [menuItems, setMenuItems] = useState([]);
+  const [menuLoading, setMenuLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(true);
   const [loadingToggle, setLoadingToggle] = useState(false);
 
@@ -18,6 +20,7 @@ export default function AdminDashboard() {
     if (!admin) { navigate("/login/admin"); return; }
     api.getKitchenOrders(admin.kitchenId).then(setOrders).catch(() => { });
     api.getKitchen(admin.kitchenId).then(k => setIsOpen(k.isOpen)).catch(() => { });
+    api.getMenu(admin.kitchenId).then(setMenuItems).catch(() => { }).finally(() => setMenuLoading(false));
   }, [admin]);
 
   const handleToggle = async () => {
@@ -39,12 +42,12 @@ export default function AdminDashboard() {
 
   const sections = [
     { icon: "📋", title: "Orders", desc: "View & update order statuses", btn: "VIEW ORDERS", path: "/admin/orders", color: "#805ad5" },
-    { icon: "🍲", title: "Menu", desc: "Add, edit or remove menu items", btn: "MANAGE MENU", path: "/admin/menu", color: "#F5A623" },
+    { icon: "🍲", title: "Food Items", desc: "Access food cards and change names, prices, or images", btn: "MANAGE FOOD ITEMS", path: "/admin/menu", color: "#F5A623" },
     { icon: "📊", title: "Analytics", desc: "Orders and revenue insights", btn: "VIEW ANALYTICS", path: "/admin/analytics", color: "#27ae60" },
   ];
 
   return (
-    <div style={{ minHeight: "100vh", backgroundColor: t.bg, fontFamily: "'Segoe UI',sans-serif" }}>
+    <div style={{ minHeight: "100vh", backgroundColor: "#FFFFFF", fontFamily: "'Segoe UI',sans-serif" }}>
       <Navbar title={admin.kitchenName || "Admin"} onLogout={handleLogout} />
 
       <div style={{ padding: "28px 24px", maxWidth: "900px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
@@ -87,6 +90,40 @@ export default function AdminDashboard() {
             </div>
           ))}
         </div>
+
+        {/* Food item access */}
+        <section style={{ backgroundColor: t.card, borderRadius: "16px", padding: "22px", border: t.cardBorder, boxShadow: t.shadow }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+            <div>
+              <p style={{ fontSize: "11px", fontWeight: "800", color: t.accent, letterSpacing: "1px", margin: "0 0 5px" }}>KITCHEN CATALOG</p>
+              <h3 style={{ fontSize: "20px", fontWeight: "900", color: t.text, margin: 0 }}>Food Items & Images</h3>
+              <p style={{ fontSize: "12px", color: t.subText, margin: "6px 0 0" }}>Change the image, price, name, or availability of any food card.</p>
+            </div>
+            <button onClick={() => navigate("/admin/menu")} style={{ backgroundColor: t.accent, color: "#fff", border: "none", borderRadius: "8px", padding: "10px 14px", fontSize: "11px", fontWeight: "800", cursor: "pointer", whiteSpace: "nowrap" }}>
+              OPEN ALL FOOD ITEMS →
+            </button>
+          </div>
+
+          {menuLoading ? (
+            <p style={{ color: t.subText, fontSize: "13px", margin: 0 }}>Loading food cards...</p>
+          ) : menuItems.length === 0 ? (
+            <p style={{ color: t.subText, fontSize: "13px", margin: 0 }}>No food cards yet. Open Food Items to add the first one.</p>
+          ) : (
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "12px" }}>
+              {menuItems.slice(0, 6).map(item => (
+                <div key={item.id} style={{ border: `1px solid ${t.border}`, borderRadius: "12px", overflow: "hidden", backgroundColor: t.bg }}>
+                  <img src={item.image || "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80"} alt={item.name} style={{ width: "100%", height: "100px", objectFit: "cover", display: "block" }} />
+                  <div style={{ padding: "10px" }}>
+                    <p style={{ color: t.text, fontSize: "13px", fontWeight: "800", margin: "0 0 8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</p>
+                    <button onClick={() => navigate("/admin/menu")} style={{ width: "100%", background: "transparent", color: t.accent, border: `1px solid ${t.borderStrong}`, borderRadius: "7px", padding: "7px", fontSize: "10px", fontWeight: "800", cursor: "pointer" }}>
+                      EDIT IMAGE / CARD
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
 
         {/* Recent Orders */}
         {orders.length > 0 && (

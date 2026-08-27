@@ -1,12 +1,15 @@
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import SupportWidget from "../components/SupportWidget";
 import { useUserAuth } from "../context/UserAuthContext";
 
 export default function OrderSuccess() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [show, setShow] = useState(false);
   const { user } = useUserAuth();
+  const paymentMethod = location.state?.paymentMethod || "cod";
+  const paid = location.state?.paid || false;
 
   useEffect(() => {
     const timer = setTimeout(() => setShow(true), 100);
@@ -59,6 +62,13 @@ export default function OrderSuccess() {
                 <p style={styles.pillValue}>Preparing your order</p>
               </div>
             </div>
+            <div style={styles.pill}>
+              <span style={styles.pillIcon}>{paymentMethod === "online" ? "💳" : "💵"}</span>
+              <div>
+                <p style={styles.pillLabel}>PAYMENT</p>
+                <p style={styles.pillValue}>{paymentMethod === "online" ? (paid ? "Paid Online ✅" : "Online") : "Cash on Delivery"}</p>
+              </div>
+            </div>
           </div>
 
           {/* Divider */}
@@ -68,15 +78,15 @@ export default function OrderSuccess() {
           <div style={styles.actions}>
             <button
               style={styles.primaryBtn}
-              onClick={() => navigate("/orders")}
+              onClick={() => user ? navigate("/orders") : navigate("/kitchens")}
             >
-              📦 TRACK MY ORDER
+              {user ? "📦 TRACK MY ORDER" : "🍽️ ORDER MORE FOOD"}
             </button>
             <button
               style={styles.secondaryBtn}
               onClick={() => navigate("/kitchens")}
             >
-              🍽️ ORDER MORE FOOD
+              {user ? "🍽️ ORDER MORE FOOD" : "🏠 BROWSE KITCHENS"}
             </button>
           </div>
         </div>
@@ -121,7 +131,7 @@ export default function OrderSuccess() {
 const styles = {
   page: {
     minHeight: "100vh",
-    backgroundColor: "#f7f7f7",
+    backgroundColor: "#FFFCF8",
     fontFamily: "'Segoe UI', sans-serif",
     display: "flex",
     flexDirection: "column",

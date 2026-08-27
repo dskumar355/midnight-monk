@@ -1,4 +1,4 @@
-import { Routes, Route } from "react-router-dom";
+import { Navigate, Routes, Route } from "react-router-dom";
 
 /* USER PAGES */
 import Landing from "./pages/Landing.jsx";
@@ -10,6 +10,9 @@ import Cart from "./pages/Cart.jsx";
 import Checkout from "./pages/Checkout.jsx";
 import OrderSuccess from "./pages/OrderSuccess.jsx";
 import Orders from "./pages/Orders.jsx";
+import Profile from "./pages/Profile.jsx";
+import CollectionsPage from "./pages/CollectionsPage.jsx";
+import HowItWorksPage from "./pages/HowItWorksPage.jsx";
 
 /* KITCHEN ADMIN */
 import AdminLogin from "./pages/AdminLogin.jsx";
@@ -26,6 +29,8 @@ import MasterKitchens from "./pages/MasterKitchens.jsx";
 import MasterAnalytics from "./pages/MasterAnalytics.jsx";
 import MasterAdminAdmins from "./pages/MasterAdminAdmins.jsx";
 import MasterSupport from "./pages/MasterSupport.jsx";
+import MasterCoupons from "./pages/MasterCoupons.jsx";
+import MasterAuditLogs from "./pages/MasterAuditLogs.jsx";
 
 import PrivateRoute from "./components/PrivateRoute.jsx";
 
@@ -34,7 +39,10 @@ export default function App() {
     <Routes>
 
       {/* PUBLIC */}
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<Navigate to="/flow" replace />} />
+      <Route path="/flow" element={<Landing />} />
+      <Route path="/collections" element={<CollectionsPage />} />
+      <Route path="/how-it-works" element={<HowItWorksPage />} />
       <Route path="/login" element={<Login />} />
       <Route path="/login/user" element={<Login />} />
       <Route path="/register" element={<Register />} />
@@ -42,12 +50,13 @@ export default function App() {
       <Route path="/master/login" element={<MasterAdminLogin />} />
 
       {/* USER */}
-      <Route path="/kitchens" element={<PrivateRoute role="user"><Kitchens /></PrivateRoute>} />
-      <Route path="/menu" element={<PrivateRoute role="user"><Menu /></PrivateRoute>} />
-      <Route path="/cart" element={<PrivateRoute role="user"><Cart /></PrivateRoute>} />
-      <Route path="/checkout" element={<PrivateRoute role="user"><Checkout /></PrivateRoute>} />
-      <Route path="/order-success" element={<PrivateRoute role="user"><OrderSuccess /></PrivateRoute>} />
+      <Route path="/kitchens" element={<Kitchens />} />
+      <Route path="/menu" element={<Menu />} />
+      <Route path="/cart" element={<Cart />} />
+      <Route path="/checkout" element={<Checkout />} />
+      <Route path="/order-success" element={<OrderSuccess />} />
       <Route path="/orders" element={<PrivateRoute role="user"><Orders /></PrivateRoute>} />
+      <Route path="/profile" element={<PrivateRoute role="user"><Profile /></PrivateRoute>} />
 
       {/* KITCHEN ADMIN */}
       <Route path="/admin" element={<PrivateRoute role="admin"><AdminDashboard /></PrivateRoute>} />
@@ -62,6 +71,8 @@ export default function App() {
       <Route path="/master/analytics" element={<PrivateRoute role="master"><MasterAnalytics /></PrivateRoute>} />
       <Route path="/master/admins" element={<PrivateRoute role="master"><MasterAdminAdmins /></PrivateRoute>} />
       <Route path="/master/support" element={<PrivateRoute role="master"><MasterSupport /></PrivateRoute>} />
+      <Route path="/master/coupons" element={<PrivateRoute role="master"><MasterCoupons /></PrivateRoute>} />
+      <Route path="/master/audit" element={<PrivateRoute role="master"><MasterAuditLogs /></PrivateRoute>} />
 
       {/* 404 */}
       <Route path="*" element={<h2 style={{ padding: 40 }}>404 — Page not found</h2>} />

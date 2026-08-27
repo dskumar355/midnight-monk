@@ -5,7 +5,7 @@ export default function SupportWidget({ senderName, senderType = "user" }) {
   const { createTicket } = useSupport();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState("form"); // "form" | "success"
+  const [step, setStep] = useState("form");
   const [category, setCategory] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
@@ -46,29 +46,29 @@ export default function SupportWidget({ senderName, senderType = "user" }) {
 
   return (
     <>
-      {/* Floating Button */}
       <button
         style={{
           ...styles.floatBtn,
-          backgroundColor: isOpen ? "#e53e3e" : "#0f0f1a",
+          background: isOpen ? "linear-gradient(135deg, #9F4F2D, #C9783E)" : "linear-gradient(135deg, #D99A5E, #C9783E)",
+          borderColor: isOpen ? "rgba(255,255,255,0.2)" : "rgba(159,79,45,0.18)",
+          boxShadow: "0 14px 28px rgba(159,79,45,0.18)",
+          color: "#fff8f0",
         }}
         onClick={() => (isOpen ? handleClose() : setIsOpen(true))}
         title="Support"
       >
-        {isOpen ? "✕" : "🎧"}
-        <span style={styles.floatLabel}>{isOpen ? "Close" : "Help"}</span>
+        <span style={{ fontSize: "18px" }}>{isOpen ? "✕" : "☾"}</span>
+        <span style={styles.floatLabel}>{isOpen ? "Close" : "Concierge"}</span>
       </button>
 
-      {/* Panel */}
       {isOpen && (
         <div style={styles.panel}>
-          {/* Panel Header */}
           <div style={styles.panelHeader}>
             <div style={styles.panelHeaderLeft}>
               <div style={styles.panelIcon}>👑</div>
               <div>
                 <p style={styles.panelTitle}>CONTACT SUPPORT</p>
-                <p style={styles.panelSub}>We'll get back to you shortly</p>
+                <p style={styles.panelSub}>We’ll get back to you shortly</p>
               </div>
             </div>
             <button style={styles.closeBtn} onClick={handleClose}>✕</button>
@@ -76,20 +76,14 @@ export default function SupportWidget({ senderName, senderType = "user" }) {
 
           {step === "form" ? (
             <div style={styles.panelBody}>
-              {/* Sender Info */}
               <div style={styles.senderBadge}>
-                <span style={styles.senderIcon}>
-                  {senderType === "admin" ? "🍳" : "👤"}
-                </span>
+                <span style={styles.senderIcon}>{senderType === "admin" ? "🍳" : "👤"}</span>
                 <span style={styles.senderName}>
                   {senderName || "Anonymous"} &nbsp;·&nbsp;
-                  <span style={styles.senderType}>
-                    {senderType === "admin" ? "Kitchen Admin" : "User"}
-                  </span>
+                  <span style={styles.senderType}>{senderType === "admin" ? "Kitchen Admin" : "User"}</span>
                 </span>
               </div>
 
-              {/* Category */}
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>ISSUE CATEGORY</label>
                 <div style={styles.categories}>
@@ -108,7 +102,6 @@ export default function SupportWidget({ senderName, senderType = "user" }) {
                 </div>
               </div>
 
-              {/* Message */}
               <div style={styles.fieldGroup}>
                 <label style={styles.label}>DESCRIBE YOUR ISSUE</label>
                 <textarea
@@ -121,7 +114,6 @@ export default function SupportWidget({ senderName, senderType = "user" }) {
                 <span style={styles.charCount}>{message.length} chars</span>
               </div>
 
-              {/* Error */}
               {error && (
                 <div style={styles.errorBox}>
                   <span>⚠️</span>
@@ -129,13 +121,11 @@ export default function SupportWidget({ senderName, senderType = "user" }) {
                 </div>
               )}
 
-              {/* Submit */}
               <button style={styles.submitBtn} onClick={handleSubmit}>
                 🚀 SEND TO MASTER ADMIN
               </button>
             </div>
           ) : (
-            /* Success */
             <div style={styles.successBody}>
               <div style={styles.successIcon}>✅</div>
               <p style={styles.successTitle}>Ticket Submitted!</p>
@@ -148,9 +138,7 @@ export default function SupportWidget({ senderName, senderType = "user" }) {
                 <p style={styles.ticketPreviewLabel}>YOUR MESSAGE</p>
                 <p style={styles.ticketPreviewValue}>{message}</p>
               </div>
-              <button style={styles.doneBtn} onClick={handleClose}>
-                DONE
-              </button>
+              <button style={styles.doneBtn} onClick={handleClose}>DONE</button>
             </div>
           )}
         </div>
@@ -160,47 +148,46 @@ export default function SupportWidget({ senderName, senderType = "user" }) {
 }
 
 const styles = {
-  // Floating button
   floatBtn: {
     position: "fixed",
-    bottom: "90px",
-    right: "28px",
+    bottom: "30px",
+    right: "24px",
     zIndex: 1000,
     display: "flex",
     alignItems: "center",
-    gap: "6px",
-    padding: "12px 18px",
-    borderRadius: "50px",
-    border: "2px solid #F5A623",
-    color: "#F5A623",
+    justifyContent: "center",
+    width: "60px",
+    height: "60px",
+    borderRadius: "50%",
+    border: "2px solid rgba(255,255,255,0.35)",
+    color: "#fff",
     fontSize: "18px",
     fontWeight: "700",
     cursor: "pointer",
-    boxShadow: "0 4px 20px rgba(0,0,0,0.25)",
-    transition: "background 0.2s",
+    boxShadow: "0 14px 28px rgba(0,0,0,0.25)",
+    transition: "all 0.2s ease",
     fontFamily: "'Segoe UI', sans-serif",
+    gap: "6px",
   },
   floatLabel: {
-    fontSize: "13px",
-    letterSpacing: "0.5px",
+    display: "none",
   },
 
-  // Panel
   panel: {
     position: "fixed",
-    bottom: "155px",
-    right: "28px",
+    bottom: "98px",
+    right: "24px",
     zIndex: 999,
     width: "340px",
-    backgroundColor: "#fff",
+    backgroundColor: "#fffaf3",
     borderRadius: "18px",
-    boxShadow: "0 8px 40px rgba(0,0,0,0.18)",
-    border: "1.5px solid #efefef",
+    boxShadow: "0 18px 40px rgba(159,79,45,0.12)",
+    border: "1.5px solid rgba(159,79,45,0.12)",
     overflow: "hidden",
     fontFamily: "'Segoe UI', sans-serif",
   },
   panelHeader: {
-    backgroundColor: "#0f0f1a",
+    backgroundColor: "#29231E",
     padding: "16px 18px",
     display: "flex",
     alignItems: "center",
@@ -215,158 +202,198 @@ const styles = {
     width: "34px",
     height: "34px",
     borderRadius: "50%",
-    backgroundColor: "#1a1a2e",
-    border: "2px solid #F5A623",
+    backgroundColor: "#362C27",
+    border: "2px solid #C9783E",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "16px",
+    fontSize: "15px",
   },
   panelTitle: {
-    fontSize: "11px",
-    fontWeight: "800",
-    color: "#F5A623",
-    letterSpacing: "1px",
     margin: 0,
+    fontSize: "12px",
+    color: "#FFF8F0",
+    letterSpacing: "1px",
+    fontWeight: "800",
   },
   panelSub: {
-    fontSize: "10px",
-    color: "#666",
-    margin: "2px 0 0 0",
+    margin: "3px 0 0",
+    fontSize: "11px",
+    color: "#d6c5b4",
   },
   closeBtn: {
-    background: "none",
+    background: "transparent",
     border: "none",
-    color: "#666",
-    fontSize: "16px",
+    color: "#fff",
+    fontSize: "18px",
     cursor: "pointer",
-    padding: "4px",
-    fontFamily: "'Segoe UI', sans-serif",
+    padding: 0,
+    opacity: 0.8,
   },
-
-  // Form body
   panelBody: {
-    padding: "18px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "14px",
-    maxHeight: "480px",
-    overflowY: "auto",
+    padding: "16px",
+    backgroundColor: "#fffaf3",
   },
   senderBadge: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    backgroundColor: "#f5f5f5",
-    borderRadius: "8px",
-    padding: "8px 12px",
-    border: "1.5px solid #efefef",
+    backgroundColor: "#F3E5D0",
+    border: "1px solid rgba(201,120,62,0.2)",
+    borderRadius: "10px",
+    padding: "10px 12px",
+    marginBottom: "16px",
   },
-  senderIcon: { fontSize: "16px" },
-  senderName: { fontSize: "12px", fontWeight: "600", color: "#333" },
-  senderType: { color: "#F5A623", fontWeight: "700" },
-
-  fieldGroup: { display: "flex", flexDirection: "column", gap: "6px" },
-  label: { fontSize: "10px", fontWeight: "800", letterSpacing: "1px", color: "#555" },
-
+  senderIcon: {
+    width: "22px",
+    height: "22px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#fff",
+    fontSize: "12px",
+  },
+  senderName: {
+    fontSize: "12px",
+    color: "#2d2d2d",
+    fontWeight: "700",
+  },
+  senderType: {
+    color: "#C9783E",
+    fontWeight: "800",
+  },
+  fieldGroup: {
+    marginBottom: "16px",
+  },
+  label: {
+    display: "block",
+    fontSize: "10px",
+    fontWeight: "800",
+    letterSpacing: "0.8px",
+    color: "#6F6257",
+    marginBottom: "8px",
+  },
   categories: {
     display: "flex",
     flexWrap: "wrap",
     gap: "6px",
   },
   catBtn: {
-    backgroundColor: "#f5f5f5",
-    border: "1.5px solid #e0e0e0",
-    borderRadius: "20px",
-    padding: "5px 12px",
+    border: "1px solid rgba(159,79,45,0.12)",
+    backgroundColor: "#f6efe5",
+    color: "#473e37",
+    borderRadius: "999px",
+    padding: "7px 10px",
     fontSize: "11px",
-    fontWeight: "600",
-    color: "#555",
+    fontWeight: "700",
     cursor: "pointer",
-    fontFamily: "'Segoe UI', sans-serif",
+    transition: "all 0.15s ease",
   },
   catBtnActive: {
-    backgroundColor: "#0f0f1a",
-    border: "1.5px solid #F5A623",
-    color: "#F5A623",
+    backgroundColor: "#F3E5D0",
+    borderColor: "#C9783E",
+    color: "#8E4E2B",
   },
-
   textarea: {
     width: "100%",
-    border: "1.5px solid #e8e8e8",
-    borderRadius: "8px",
+    borderRadius: "10px",
+    border: "1.5px solid rgba(159,79,45,0.12)",
+    backgroundColor: "#f8f4ee",
     padding: "10px 12px",
-    fontSize: "13px",
-    color: "#333",
-    outline: "none",
+    fontSize: "12px",
+    color: "#222",
     resize: "vertical",
-    fontFamily: "'Segoe UI', sans-serif",
-    backgroundColor: "#fafafa",
     boxSizing: "border-box",
+    outline: "none",
+    fontFamily: "'Segoe UI', sans-serif",
   },
   charCount: {
-    fontSize: "10px",
-    color: "#bbb",
+    display: "block",
     textAlign: "right",
+    color: "#7C7063",
+    fontSize: "10px",
+    marginTop: "4px",
   },
   errorBox: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
-    backgroundColor: "#fff5f5",
-    border: "1px solid #fed7d7",
-    borderRadius: "6px",
-    padding: "8px 12px",
-  },
-  errorText: { color: "#e53e3e", fontSize: "12px", fontWeight: "600" },
-
-  submitBtn: {
-    backgroundColor: "#0f0f1a",
-    color: "#F5A623",
-    border: "2px solid #F5A623",
-    borderRadius: "8px",
-    padding: "12px",
+    padding: "10px 12px",
+    borderRadius: "10px",
+    backgroundColor: "#f7e7de",
+    border: "1px solid rgba(183,103,83,0.2)",
+    color: "#8E4A3A",
     fontSize: "12px",
     fontWeight: "700",
-    letterSpacing: "1px",
-    cursor: "pointer",
+    marginBottom: "12px",
+  },
+  errorText: {
+    flex: 1,
+  },
+  submitBtn: {
     width: "100%",
-    fontFamily: "'Segoe UI', sans-serif",
-  },
-
-  // Success
-  successBody: {
-    padding: "24px 18px",
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    gap: "12px",
-  },
-  successIcon: { fontSize: "44px" },
-  successTitle: { fontSize: "16px", fontWeight: "800", color: "#1a1a1a", margin: 0 },
-  successText: { fontSize: "12px", color: "#888", textAlign: "center", margin: 0, lineHeight: 1.6 },
-  ticketPreview: {
-    width: "100%",
-    backgroundColor: "#fafafa",
-    borderRadius: "8px",
-    padding: "12px 14px",
-    border: "1.5px solid #efefef",
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px",
-  },
-  ticketPreviewLabel: { fontSize: "9px", fontWeight: "700", color: "#bbb", letterSpacing: "1px", margin: 0 },
-  ticketPreviewValue: { fontSize: "12px", color: "#333", fontWeight: "600", margin: "0 0 6px 0" },
-  doneBtn: {
-    backgroundColor: "#F5A623",
-    color: "#fff",
+    backgroundColor: "#9F4F2D",
+    color: "#fff8f0",
     border: "none",
-    borderRadius: "8px",
-    padding: "12px 32px",
-    fontSize: "13px",
-    fontWeight: "700",
-    letterSpacing: "1px",
+    borderRadius: "10px",
+    padding: "12px",
+    fontSize: "12px",
+    fontWeight: "800",
+    letterSpacing: "0.6px",
     cursor: "pointer",
-    fontFamily: "'Segoe UI', sans-serif",
+  },
+  successBody: {
+    padding: "18px 16px",
+    textAlign: "center",
+    backgroundColor: "#fffaf3",
+  },
+  successIcon: {
+    fontSize: "36px",
+    marginBottom: "10px",
+  },
+  successTitle: {
+    margin: "0 0 8px",
+    fontSize: "20px",
+    fontWeight: "900",
+    color: "#29231E",
+  },
+  successText: {
+    margin: 0,
+    fontSize: "12px",
+    color: "#6F6257",
+    lineHeight: 1.5,
+  },
+  ticketPreview: {
+    textAlign: "left",
+    backgroundColor: "#f8f4ee",
+    border: "1px solid rgba(159,79,45,0.12)",
+    borderRadius: "10px",
+    padding: "12px",
+    margin: "16px 0",
+  },
+  ticketPreviewLabel: {
+    margin: "0 0 4px",
+    fontSize: "10px",
+    letterSpacing: "0.8px",
+    color: "#7C7063",
+    fontWeight: "800",
+  },
+  ticketPreviewValue: {
+    margin: "0 0 12px",
+    fontSize: "12px",
+    color: "#29231E",
+    wordBreak: "break-word",
+  },
+  doneBtn: {
+    backgroundColor: "#C9783E",
+    color: "#fff8f0",
+    border: "none",
+    borderRadius: "10px",
+    padding: "10px 16px",
+    fontSize: "12px",
+    fontWeight: "800",
+    cursor: "pointer",
+    width: "100%",
   },
 };

@@ -1,7 +1,21 @@
 // ✅ Socket.IO service — real-time order status updates
 import { io } from "socket.io-client";
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const resolveSocketUrl = () => {
+  const envUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl;
+  }
+  if (typeof window !== "undefined" && window.location) {
+    const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    if (!isLocalhost) {
+      return "https://midnight-monk-1.onrender.com";
+    }
+  }
+  return envUrl || "http://localhost:8000";
+};
+
+const SOCKET_URL = resolveSocketUrl();
 
 let socket = null;
 

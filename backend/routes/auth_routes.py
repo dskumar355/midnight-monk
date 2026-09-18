@@ -16,6 +16,7 @@ def hash_password(password):
 # 👤 USER LOGIN (name + mobile)
 # Matches Login.jsx handleUserLogin()
 # ─────────────────────────────────────────
+@auth_routes.route("/login", methods=["POST"])
 @auth_routes.route("/user-login", methods=["POST"])
 @limiter.limit("10 per minute")
 def user_login():
@@ -65,6 +66,7 @@ def user_login():
 # 👤 USER REGISTER (name + mobile + confirm)
 # Matches Register.jsx handleRegister()
 # ─────────────────────────────────────────
+@auth_routes.route("/register", methods=["POST"])
 @auth_routes.route("/user-register", methods=["POST"])
 @limiter.limit("10 per minute")
 def user_register():

@@ -44,7 +44,9 @@ def format_kitchen(kitchen):
     return {
         "id":           str(kitchen["_id"]),
         "kitchen_id":   kitchen.get("kitchen_id", ""),
+        "kitchenId":    kitchen.get("kitchen_id", ""),
         "name":         kitchen.get("kitchen_name", ""),
+        "kitchenName":  kitchen.get("kitchen_name", ""),
         "owner":        kitchen.get("owner_name", ""),
         "location":     kitchen.get("location", ""),
         "tag":          kitchen.get("tag", "*open now, fast prep"),
@@ -52,6 +54,7 @@ def format_kitchen(kitchen):
         "reviews":      kitchen.get("reviews", 0),
         "ratingLabel":  kitchen.get("rating_label", ""),
         "isOpen":       kitchen.get("is_open", True),
+        "is_open":      kitchen.get("is_open", True),
         "createdAt":    kitchen.get("createdAt", ""),
     }
 

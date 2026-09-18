@@ -1,7 +1,21 @@
 // ✅ Central API service for Midnight Monk
 // All backend calls go through here
 
-const API_ROOT = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
+const resolveApiRoot = () => {
+  const envUrl = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL;
+  if (envUrl && !envUrl.includes("localhost") && !envUrl.includes("127.0.0.1")) {
+    return envUrl;
+  }
+  if (typeof window !== "undefined" && window.location) {
+    const isLocalhost = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+    if (!isLocalhost) {
+      return "https://midnight-monk-1.onrender.com";
+    }
+  }
+  return envUrl || "http://localhost:8000";
+};
+
+const API_ROOT = resolveApiRoot().replace(/\/+$/, "");
 const BASE_URL = `${API_ROOT}/api`;
 
 // ─────────────────────────────────────────
@@ -10,9 +24,9 @@ const BASE_URL = `${API_ROOT}/api`;
 export const detectCurrentRole = () => {
   if (typeof window !== "undefined" && window.location) {
     const path = window.location.pathname || "";
-    if (path.startsWith("/master")) return "master";
-    if (path.startsWith("/admin")) return "admin";
-    if (path.startsWith("/delivery")) return "delivery";
+    if (path.startsWith("/master-admin") || path.startsWith("/master")) return "master";
+    if (path.startsWith("/kitchen-admin") || path.startsWith("/admin")) return "admin";
+    if (path.startsWith("/delivery-partner") || path.startsWith("/delivery")) return "delivery";
   }
   return "user";
 };

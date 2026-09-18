@@ -127,25 +127,35 @@ def format_order(order):
     if not order:
         return None
 
+    partner_id = order.get("delivery_assignment", {}).get("partner_id") or ""
+    user_id = str(order.get("user", {}).get("_id") or order.get("user_id", "") or "")
+
     return {
-        "id":         str(order["_id"]),          # ✅ frontend uses order.id
-        "user":       order.get("user", {}),
-        "kitchenId":  order.get("kitchen_id", ""), # ✅ frontend uses order.kitchenId
-        "items":      order.get("items", []),
-        "total":      order.get("total", 0),
-        "address":    order.get("address", ""),
-        "status":     order.get("status", "ORDER_PLACED"),
-        "riderName":  order.get("delivery_assignment", {}).get("partner_name", ""),
-        "riderPhone": order.get("delivery_assignment", {}).get("partner_phone", ""),
-        "otp":        order.get("otp", 0),
-        "etaMinutes": order.get("eta_minutes", 20),
-        "paymentMethod": order.get("payment_method", "COD"),
-        "paymentStatus": order.get("payment_status", "Pending"),
-        "deliveryAssignment": order.get("delivery_assignment", {}),
-        "tracking":   order.get("tracking", {}),
-        "cod": order.get("cod", {}),
-        "date":       order.get("date", ""),
-        "createdAt":  order.get("createdAt", ""),
+        "id":                  str(order["_id"]),          # ✅ frontend uses order.id
+        "order_id":            str(order["_id"]),          # ✅ alias for consistency
+        "user":                order.get("user", {}),
+        "userId":              user_id,
+        "user_id":             user_id,
+        "kitchenId":           order.get("kitchen_id", ""), # ✅ frontend uses order.kitchenId
+        "kitchen_id":          order.get("kitchen_id", ""), # ✅ backend alias
+        "items":               order.get("items", []),
+        "total":               order.get("total", 0),
+        "address":             order.get("address", ""),
+        "status":              order.get("status", "ORDER_PLACED"),
+        "riderName":           order.get("delivery_assignment", {}).get("partner_name", ""),
+        "riderPhone":          order.get("delivery_assignment", {}).get("partner_phone", ""),
+        "deliveryPartnerId":   partner_id,
+        "delivery_partner_id": partner_id,
+        "otp":                 order.get("otp", 0),
+        "etaMinutes":          order.get("eta_minutes", 20),
+        "paymentMethod":       order.get("payment_method", "COD"),
+        "paymentStatus":       order.get("payment_status", "Pending"),
+        "deliveryAssignment":  order.get("delivery_assignment", {}),
+        "delivery_assignment": order.get("delivery_assignment", {}),
+        "tracking":            order.get("tracking", {}),
+        "cod":                 order.get("cod", {}),
+        "date":                order.get("date", ""),
+        "createdAt":           order.get("createdAt", ""),
     }
 
 

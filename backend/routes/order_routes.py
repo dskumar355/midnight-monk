@@ -13,6 +13,8 @@ order_routes = Blueprint("order_routes", __name__)
 # POST /api/orders/create
 # Called from Checkout.jsx handlePayment()
 # ─────────────────────────────────────────
+@order_routes.route("", methods=["POST"])
+@order_routes.route("/", methods=["POST"])
 @order_routes.route("/create", methods=["POST"])
 def create():
     payload, err = require_auth(request)
@@ -334,6 +336,7 @@ def update_partner_availability():
 
 
 @order_routes.route("/delivery/status/<order_id>", methods=["PATCH"])
+@order_routes.route("/delivery/<order_id>/status", methods=["PATCH"])
 def update_delivery_status(order_id):
     payload, err = require_role(request, "delivery_partner")
     if err:

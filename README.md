@@ -158,22 +158,22 @@ http://localhost:5173
 ### Kitchen Admin Login
 | Username | Password | Kitchen       |
 |----------|----------|---------------|
-| admin1   | 1234     | Night Bites   |
-| admin2   | 1234     | Midnight Meals|
+| admin1   | ******   | Night Bites   |
+| admin2   | ******    | Midnight Meals|
 
 Go to: `http://localhost:5173/login/admin`
 
 ### Master Admin Login
 | Username | Password |
 |----------|----------|
-| master   | master123|
+| master   | *********|
 
 Go to: `http://localhost:5173/login/master`
 
 ### Delivery Partner Login
 | Username | Password | Partner |
 |----------|----------|---------|
-| rider1   | rider123 | Aarav Rider |
+| rider1   | ********* | Aarav Rider |
 
 Run `python3 seed_delivery_partner.py` from `backend/` once to create this local demo account.
 

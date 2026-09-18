@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FiUser, FiShoppingBag, FiShoppingCart, FiPackage, FiMapPin, FiChevronDown } from "react-icons/fi";
+import { FiUser, FiShoppingBag, FiShoppingCart, FiPackage, FiMapPin, FiChevronDown, FiMenu, FiX } from "react-icons/fi";
 import { useTheme } from "../context/ThemeContext";
 import { useUserAuth } from "../context/UserAuthContext";
 import { useAdminAuth } from "../context/AdminAuthContext";
@@ -21,8 +21,12 @@ const defaultBackPaths = {
   "/kitchens": "/flow",
   "/collections": "/flow",
   "/how-it-works": "/flow",
-  "/admin": "/login/admin",
-  "/master": "/master/login",
+  "/kitchen-admin": "/kitchen-admin/login",
+  "/kitchen-admin/dashboard": "/kitchen-admin/login",
+  "/master-admin": "/master-admin/login",
+  "/master-admin/dashboard": "/master-admin/login",
+  "/admin": "/kitchen-admin/login",
+  "/master": "/master-admin/login",
 };
 
 export default function Navbar({ title, backPath, backLabel, onLogout, rightContent }) {
@@ -47,9 +51,14 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
     }
   });
   const [locationQuery, setLocationQuery] = useState("");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const profileRef = useRef(null);
   const locationRef = useRef(null);
+
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [location.pathname]);
 
   useEffect(() => {
     const onScroll = () => setIsScrolled(window.scrollY > 10);
@@ -95,6 +104,34 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
 
   return (
     <>
+      <style>{`
+        .navbar-desktop-nav {
+          display: flex;
+        }
+        .navbar-mobile-toggle {
+          display: none !important;
+        }
+        .navbar-desktop-location {
+          display: block;
+        }
+        .navbar-desktop-btn-label {
+          display: inline;
+        }
+        @media (max-width: 768px) {
+          .navbar-desktop-nav {
+            display: none !important;
+          }
+          .navbar-mobile-toggle {
+            display: inline-flex !important;
+          }
+          .navbar-desktop-location {
+            display: none !important;
+          }
+          .navbar-desktop-btn-label {
+            display: none !important;
+          }
+        }
+      `}</style>
       <header
         style={{
           position: "sticky",
@@ -175,10 +212,10 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
 
               <span
                 style={{
-                  fontSize: isScrolled ? "15px" : "18px",
+                  fontSize: isScrolled ? "14px" : "clamp(13px, 3.5vw, 18px)",
                   fontWeight: "900",
                   color: t.text,
-                  letterSpacing: "0.14em",
+                  letterSpacing: "0.12em",
                   textTransform: "uppercase",
                   whiteSpace: "nowrap",
                   lineHeight: 1.2,
@@ -190,7 +227,7 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
             </button>
 
             {!title && (
-              <div ref={locationRef} style={{ position: "relative" }}>
+              <div ref={locationRef} className="navbar-desktop-location" style={{ position: "relative" }}>
                 <button
                   onClick={() => setLocationOpen(!locationOpen)}
                   style={{
@@ -285,7 +322,7 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
 
           {/* CENTER: Navigation (only on main pages) */}
           {!title && (
-            <nav style={{ display: "flex", alignItems: "center", gap: "26px", justifyContent: "center", flex: 0 }}>
+            <nav className="navbar-desktop-nav" style={{ alignItems: "center", gap: "26px", justifyContent: "center", flex: 0 }}>
               <button
                 onClick={() => navigate("/kitchens")}
                 style={{
@@ -349,7 +386,7 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
                   title="My Cart"
                 >
                   <FiShoppingCart size={14} />
-                  {!isScrolled && <span>CART</span>}
+                  {!isScrolled && <span className="navbar-desktop-btn-label">CART</span>}
                   {totalItems > 0 && (
                     <span
                       style={{
@@ -411,7 +448,7 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
                       title="Active Orders"
                     >
                       <FiPackage size={14} />
-                      {!isScrolled && <span>ORDERS</span>}
+                      {!isScrolled && <span className="navbar-desktop-btn-label">ORDERS</span>}
                       {activeOrdersCount > 0 && (
                         <span
                           style={{
@@ -434,84 +471,324 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
                     </button>
 
                     <div ref={profileRef} style={{ position: "relative" }}>
-              <button
-                onClick={() => setProfileOpen(!profileOpen)}
-                style={{
-                  background: "transparent",
-                  border: `1px solid ${t.border}`,
-                  borderRadius: "10px",
-                  color: t.text,
-                  padding: isScrolled ? "8px 10px" : "10px 12px",
-                  fontSize: "12px",
-                  fontWeight: "800",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
-                  transition: "all 0.25s ease",
-                }}
-                title="Profile"
-              >
-                <FiUser size={14} />
-                {!isScrolled && <span>PROFILE</span>}
-                <FiChevronDown size={11} />
-              </button>
+                      <button
+                        onClick={() => setProfileOpen(!profileOpen)}
+                        style={{
+                          background: "transparent",
+                          border: `1px solid ${t.border}`,
+                          borderRadius: "10px",
+                          color: t.text,
+                          padding: isScrolled ? "8px 10px" : "10px 12px",
+                          fontSize: "12px",
+                          fontWeight: "800",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          cursor: "pointer",
+                          transition: "all 0.25s ease",
+                        }}
+                        title="Profile"
+                      >
+                        <FiUser size={14} />
+                        {!isScrolled && <span className="navbar-desktop-btn-label">PROFILE</span>}
+                        <FiChevronDown size={11} />
+                      </button>
 
-              {profileOpen && (
-                <div
-                  style={{
-                    position: "absolute",
-                    right: 0,
-                    top: "calc(100% + 8px)",
-                    width: "200px",
-                    background: t.card,
-                    border: `1px solid ${t.border}`,
-                    borderRadius: "12px",
-                    boxShadow: t.shadow,
-                    overflow: "hidden",
-                    zIndex: 130,
-                  }}
-                >
-                  {profileItems.map((item, i) => (
-                    <button
-                      key={item.label}
-                      onClick={() => {
-                        item.action();
-                        setProfileOpen(false);
-                      }}
-                      style={{
-                        width: "100%",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: "10px",
-                        padding: "11px 12px",
-                        color: item.danger ? t.danger : t.text,
-                        background: "transparent",
-                        border: "none",
-                        borderBottom: i < profileItems.length - 1 ? `1px solid ${t.border}` : "none",
-                        textAlign: "left",
-                        cursor: "pointer",
-                        fontWeight: "700",
-                        fontSize: "12px",
-                      }}
-                    >
-                      <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                        <span>{item.icon}</span>
-                        {item.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
+                      {profileOpen && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            right: 0,
+                            top: "calc(100% + 8px)",
+                            width: "200px",
+                            background: t.card,
+                            border: `1px solid ${t.border}`,
+                            borderRadius: "12px",
+                            boxShadow: t.shadow,
+                            overflow: "hidden",
+                            zIndex: 130,
+                          }}
+                        >
+                          {profileItems.map((item, i) => (
+                            <button
+                              key={item.label}
+                              onClick={() => {
+                                item.action();
+                                setProfileOpen(false);
+                              }}
+                              style={{
+                                width: "100%",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: "10px",
+                                padding: "11px 12px",
+                                color: item.danger ? t.danger : t.text,
+                                background: "transparent",
+                                border: "none",
+                                borderBottom: i < profileItems.length - 1 ? `1px solid ${t.border}` : "none",
+                                textAlign: "left",
+                                cursor: "pointer",
+                                fontWeight: "700",
+                                fontSize: "12px",
+                              }}
+                            >
+                              <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                <span>{item.icon}</span>
+                                {item.label}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   </>
                 )}
+
+                {/* Mobile Menu Toggle Button */}
+                <button
+                  className="navbar-mobile-toggle"
+                  onClick={() => setMobileMenuOpen((prev) => !prev)}
+                  aria-label="Toggle Navigation Menu"
+                  style={{
+                    background: mobileMenuOpen ? (t.accentSoft || "rgba(201,120,62,0.15)") : "transparent",
+                    border: `1px solid ${mobileMenuOpen ? (t.accent || "#C9783E") : t.border}`,
+                    borderRadius: "10px",
+                    color: mobileMenuOpen ? (t.accentText || t.accent || "#C9783E") : t.text,
+                    padding: "8px 10px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  {mobileMenuOpen ? <FiX size={18} /> : <FiMenu size={18} />}
+                </button>
               </>
             )}
           </div>
         </div>
+
+        {/* Mobile Slide-down Menu Drawer */}
+        {mobileMenuOpen && (
+          <div
+            style={{
+              borderTop: `1px solid ${t.border}`,
+              background: t.card || t.navBg,
+              padding: "16px 20px 20px",
+              display: "flex",
+              flexDirection: "column",
+              gap: "10px",
+              boxShadow: "0 12px 24px rgba(0,0,0,0.14)",
+            }}
+          >
+            {/* Delivery location selector for Mobile */}
+            <div style={{ paddingBottom: "10px", borderBottom: `1px solid ${t.border}` }}>
+              <div style={{ fontSize: "11px", fontWeight: "800", color: t.textSoft, marginBottom: "6px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                Delivery Location
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", background: t.input, border: `1px solid ${t.border}`, borderRadius: "10px", padding: "8px 12px" }}>
+                <FiMapPin size={14} color={t.accentStrong} />
+                <select
+                  value={selectedLocation}
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    color: t.text,
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    width: "100%",
+                    outline: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  {defaultLocations.map((loc) => (
+                    <option key={loc} value={loc} style={{ background: t.card, color: t.text }}>
+                      {loc}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <button
+              onClick={() => { navigate("/kitchens"); setMobileMenuOpen(false); }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "transparent",
+                border: "none",
+                color: t.text,
+                fontSize: "14px",
+                fontWeight: "700",
+                padding: "8px 4px",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span>🍽️ Browse Kitchens</span>
+              <span style={{ color: t.textSoft, fontSize: "12px" }}>→</span>
+            </button>
+
+            <button
+              onClick={() => { navigate("/how-it-works"); setMobileMenuOpen(false); }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "transparent",
+                border: "none",
+                color: t.text,
+                fontSize: "14px",
+                fontWeight: "700",
+                padding: "8px 4px",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span>💡 How It Works</span>
+              <span style={{ color: t.textSoft, fontSize: "12px" }}>→</span>
+            </button>
+
+            <button
+              onClick={() => { navigate("/cart"); setMobileMenuOpen(false); }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "transparent",
+                border: "none",
+                color: t.text,
+                fontSize: "14px",
+                fontWeight: "700",
+                padding: "8px 4px",
+                cursor: "pointer",
+                textAlign: "left",
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                🛒 Cart
+              </span>
+              {totalItems > 0 && (
+                <span
+                  style={{
+                    background: t.accent || "#C9783E",
+                    color: t.accentText || "#fff",
+                    fontSize: "11px",
+                    fontWeight: "800",
+                    borderRadius: "999px",
+                    padding: "2px 8px",
+                  }}
+                >
+                  {totalItems} items
+                </span>
+              )}
+            </button>
+
+            {user && (
+              <>
+                <button
+                  onClick={() => { navigate("/orders"); setMobileMenuOpen(false); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "transparent",
+                    border: "none",
+                    color: t.text,
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    padding: "8px 4px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    📦 My Orders
+                  </span>
+                  {activeOrdersCount > 0 && (
+                    <span
+                      style={{
+                        background: t.accent || "#C9783E",
+                        color: t.accentText || "#fff",
+                        fontSize: "11px",
+                        fontWeight: "800",
+                        borderRadius: "999px",
+                        padding: "2px 8px",
+                      }}
+                    >
+                      {activeOrdersCount} active
+                    </span>
+                  )}
+                </button>
+
+                <button
+                  onClick={() => { navigate("/profile"); setMobileMenuOpen(false); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    background: "transparent",
+                    border: "none",
+                    color: t.text,
+                    fontSize: "14px",
+                    fontWeight: "700",
+                    padding: "8px 4px",
+                    cursor: "pointer",
+                    textAlign: "left",
+                  }}
+                >
+                  <span>👤 My Profile</span>
+                  <span style={{ color: t.textSoft, fontSize: "12px" }}>→</span>
+                </button>
+
+                <button
+                  onClick={() => { handleLogout(); setMobileMenuOpen(false); }}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "8px",
+                    background: "transparent",
+                    border: `1px solid ${t.danger || "#ff4d4f"}`,
+                    color: t.danger || "#ff4d4f",
+                    borderRadius: "10px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    padding: "10px 16px",
+                    cursor: "pointer",
+                    marginTop: "6px",
+                  }}
+                >
+                  🚪 Logout
+                </button>
+              </>
+            )}
+
+            {!user && (
+              <button
+                onClick={() => { navigate("/login", { state: { from: location.pathname } }); setMobileMenuOpen(false); }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: "8px",
+                  background: t.accent || "#C9783E",
+                  color: t.accentText || "#fff",
+                  border: "none",
+                  borderRadius: "10px",
+                  fontSize: "13px",
+                  fontWeight: "800",
+                  padding: "11px 16px",
+                  cursor: "pointer",
+                  marginTop: "6px",
+                }}
+              >
+                Sign In / Create Account
+              </button>
+            )}
+          </div>
+        )}
       </header>
     </>
   );

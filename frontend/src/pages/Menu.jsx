@@ -366,7 +366,7 @@ export default function Menu() {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+            gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 280px), 1fr))",
             gap: "20px",
           }}
         >
@@ -509,7 +509,7 @@ export default function Menu() {
                   <h3
                     style={{
                       margin: "0 0 8px",
-                      fontSize: "26px",
+                      fontSize: "clamp(20px, 4vw, 26px)",
                       lineHeight: 1.15,
                       color: t.text,
                     }}

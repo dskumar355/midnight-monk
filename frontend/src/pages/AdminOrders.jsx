@@ -19,7 +19,7 @@ export default function AdminOrders() {
   const [filter, setFilter] = useState("All");
 
   useEffect(() => {
-    if (!admin) { navigate("/login/admin"); return; }
+    if (!admin) { navigate("/kitchen-admin/login"); return; }
     fetchKitchenOrders(admin.kitchenId);
 
     const unsub = subscribeToKitchen(admin.kitchenId, () => {
@@ -44,7 +44,7 @@ export default function AdminOrders() {
     setUpdating(null);
   };
 
-  const handleLogout = () => { logout(); navigate("/login/admin"); };
+  const handleLogout = () => { logout(); navigate("/kitchen-admin/login"); };
   const filtered = filter === "All" ? orders : orders.filter(o => o.status === filter);
 
   if (loading) return (
@@ -53,7 +53,7 @@ export default function AdminOrders() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: t.bg, fontFamily: "'Segoe UI',sans-serif" }}>
-      <Navbar title={`Orders — ${admin?.kitchenName}`} backPath="/admin" backLabel="Dashboard" onLogout={handleLogout}
+      <Navbar title={`Orders — ${admin?.kitchenName}`} backPath="/kitchen-admin/dashboard" backLabel="Dashboard" onLogout={handleLogout}
         rightContent={<span style={{ backgroundColor: t.dark ? "#2a2a3e" : "#f0f0f0", borderRadius: "8px", padding: "5px 12px", fontSize: "12px", color: t.subText, fontWeight: "700" }}>{orders.length} total</span>}
       />
 

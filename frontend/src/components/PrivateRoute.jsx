@@ -15,12 +15,12 @@ export default function PrivateRoute({ children, role }) {
 
     if (role === 'admin') {
         const { admin } = useAdminAuth();
-        return admin ? children : <Navigate to="/login/admin" replace />;
+        return admin ? children : <Navigate to="/kitchen-admin/login" replace />;
     }
 
     if (role === 'master') {
         const { master } = useMasterAuth();
-        return master ? children : <Navigate to="/master/login" replace />;
+        return master ? children : <Navigate to="/master-admin/login" replace />;
     }
 
     if (role === 'delivery') {

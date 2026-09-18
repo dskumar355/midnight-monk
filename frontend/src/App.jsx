@@ -53,8 +53,12 @@ export default function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/login/user" element={<Login />} />
       <Route path="/register" element={<Register />} />
-      <Route path="/login/admin" element={<AdminLogin />} />
       <Route path="/delivery/login" element={<DeliveryPartnerLogin />} />
+
+      {/* DEDICATED SEPARATE ADMIN LOGIN ROUTES */}
+      <Route path="/kitchen-admin/login" element={<AdminLogin />} />
+      <Route path="/login/admin" element={<AdminLogin />} />
+      <Route path="/master-admin/login" element={<MasterAdminLogin />} />
       <Route path="/master/login" element={<MasterAdminLogin />} />
 
       {/* USER */}
@@ -67,14 +71,37 @@ export default function App() {
       <Route path="/track-order/:orderId" element={<TrackOrder />} />
       <Route path="/profile" element={<PrivateRoute role="user"><Profile /></PrivateRoute>} />
 
-      {/* KITCHEN ADMIN */}
+      {/* KITCHEN ADMIN PORTAL */}
+      <Route path="/kitchen-admin" element={<Navigate to="/kitchen-admin/dashboard" replace />} />
+      <Route path="/kitchen-admin/dashboard" element={<PrivateRoute role="admin"><AdminDashboard /></PrivateRoute>} />
+      <Route path="/kitchen-admin/menu" element={<PrivateRoute role="admin"><AdminMenu /></PrivateRoute>} />
+      <Route path="/kitchen-admin/orders" element={<PrivateRoute role="admin"><AdminOrders /></PrivateRoute>} />
+      <Route path="/kitchen-admin/analytics" element={<PrivateRoute role="admin"><AdminAnalytics /></PrivateRoute>} />
+
+      {/* Legacy /admin aliases */}
       <Route path="/admin" element={<PrivateRoute role="admin"><AdminDashboard /></PrivateRoute>} />
+      <Route path="/admin/dashboard" element={<PrivateRoute role="admin"><AdminDashboard /></PrivateRoute>} />
       <Route path="/admin/menu" element={<PrivateRoute role="admin"><AdminMenu /></PrivateRoute>} />
       <Route path="/admin/orders" element={<PrivateRoute role="admin"><AdminOrders /></PrivateRoute>} />
       <Route path="/admin/analytics" element={<PrivateRoute role="admin"><AdminAnalytics /></PrivateRoute>} />
 
-      {/* MASTER ADMIN */}
+      {/* MASTER ADMIN PORTAL */}
+      <Route path="/master-admin" element={<Navigate to="/master-admin/dashboard" replace />} />
+      <Route path="/master-admin/dashboard" element={<PrivateRoute role="master"><MasterAdminDashboard /></PrivateRoute>} />
+      <Route path="/master-admin/orders" element={<PrivateRoute role="master"><MasterOrders /></PrivateRoute>} />
+      <Route path="/master-admin/kitchens" element={<PrivateRoute role="master"><MasterKitchens /></PrivateRoute>} />
+      <Route path="/master-admin/analytics" element={<PrivateRoute role="master"><MasterAnalytics /></PrivateRoute>} />
+      <Route path="/master-admin/admins" element={<PrivateRoute role="master"><MasterAdminAdmins /></PrivateRoute>} />
+      <Route path="/master-admin/support" element={<PrivateRoute role="master"><MasterSupport /></PrivateRoute>} />
+      <Route path="/master-admin/coupons" element={<PrivateRoute role="master"><MasterCoupons /></PrivateRoute>} />
+      <Route path="/master-admin/audit" element={<PrivateRoute role="master"><MasterAuditLogs /></PrivateRoute>} />
+      <Route path="/master-admin/delivery-partners" element={<PrivateRoute role="master"><MasterDeliveryPartners /></PrivateRoute>} />
+      <Route path="/master-admin/active-deliveries" element={<PrivateRoute role="master"><MasterActiveDeliveries /></PrivateRoute>} />
+      <Route path="/master-admin/delivery-history" element={<PrivateRoute role="master"><MasterDeliveryHistory /></PrivateRoute>} />
+
+      {/* Legacy /master aliases */}
       <Route path="/master" element={<PrivateRoute role="master"><MasterAdminDashboard /></PrivateRoute>} />
+      <Route path="/master/dashboard" element={<PrivateRoute role="master"><MasterAdminDashboard /></PrivateRoute>} />
       <Route path="/master/orders" element={<PrivateRoute role="master"><MasterOrders /></PrivateRoute>} />
       <Route path="/master/kitchens" element={<PrivateRoute role="master"><MasterKitchens /></PrivateRoute>} />
       <Route path="/master/analytics" element={<PrivateRoute role="master"><MasterAnalytics /></PrivateRoute>} />
@@ -88,6 +115,7 @@ export default function App() {
 
       {/* DELIVERY PARTNER */}
       <Route path="/delivery" element={<PrivateRoute role="delivery"><DeliveryPartnerDashboard /></PrivateRoute>} />
+      <Route path="/delivery/dashboard" element={<PrivateRoute role="delivery"><DeliveryPartnerDashboard /></PrivateRoute>} />
 
       {/* 404 */}
       <Route path="*" element={<NotFound />} />

@@ -17,14 +17,14 @@ export default function AdminAnalytics() {
   const [hoveredHour, setHoveredHour] = useState(null);
 
   useEffect(() => {
-    if (!admin) { navigate("/login/admin"); return; }
+    if (!admin) { navigate("/kitchen-admin/login"); return; }
     api.getKitchenOrders(admin.kitchenId)
       .then(data => setOrders(data || []))
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
   }, [admin]);
 
-  const handleLogout = () => { logout(); navigate("/login/admin"); };
+  const handleLogout = () => { logout(); navigate("/kitchen-admin/login"); };
 
   // ── KPI computations ──
   const revenue = useMemo(() => orders.reduce((s, o) => s + (o.total || 0), 0), [orders]);
@@ -174,7 +174,7 @@ export default function AdminAnalytics() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: t.bg, fontFamily: "'Segoe UI',sans-serif" }}>
-      <Navbar title={`Analytics — ${admin?.kitchenName}`} backPath="/admin" backLabel="Dashboard" onLogout={handleLogout} />
+      <Navbar title={`Analytics — ${admin?.kitchenName}`} backPath="/kitchen-admin/dashboard" backLabel="Dashboard" onLogout={handleLogout} />
 
       <style>{`
         @keyframes fadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: translateY(0); } }

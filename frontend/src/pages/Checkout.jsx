@@ -212,7 +212,7 @@ export default function Checkout() {
     <div style={{ minHeight:"100vh", backgroundColor:t.bg, fontFamily:"'Segoe UI',sans-serif" }}>
       <Navbar title="Checkout" backPath="/cart" backLabel="Cart" onLogout={handleLogout} />
 
-      <div style={{ padding:"24px", maxWidth:"560px", margin:"0 auto", display:"flex", flexDirection:"column", gap:"16px" }}>
+      <div style={{ padding:"clamp(14px, 3.5vw, 24px)", maxWidth:"560px", margin:"0 auto", display:"flex", flexDirection:"column", gap:"16px" }}>
 
         {/* ── Order Summary ── */}
         <div style={card(t)}>
@@ -305,7 +305,7 @@ export default function Checkout() {
           <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
             <Field label="Flat / House No." value={flat}     onChange={setFlat}    placeholder="e.g. Flat 4B" t={t} />
             <Field label="Street / Area"    value={street}   onChange={setStreet}  placeholder="e.g. MG Road" t={t} />
-            <div style={{ display:"flex", gap:"12px" }}>
+            <div style={{ display:"flex", gap:"12px", flexWrap:"wrap" }}>
               <Field label="City"    value={city}    onChange={setCity}    placeholder="e.g. Bangalore" t={t} />
               <Field label="Pincode" value={pincode} onChange={setPincode} placeholder="560001" maxLength={6} t={t} />
             </div>

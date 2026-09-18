@@ -22,7 +22,7 @@ export default function AdminMenu() {
   const [editingId, setEditingId] = useState(null);
 
   useEffect(() => {
-    if (!admin) { navigate("/login/admin"); return; }
+    if (!admin) { navigate("/kitchen-admin/login"); return; }
     fetchMenu();
   }, [admin]);
 
@@ -99,7 +99,7 @@ export default function AdminMenu() {
     setItems(prev => prev.map(i => i.id === id ? { ...i, available: !i.available } : i));
   };
 
-  const handleLogout = () => { logout(); navigate("/login/admin"); };
+  const handleLogout = () => { logout(); navigate("/kitchen-admin/login"); };
   const inputStyle = {
     border: `1.5px solid ${t.dark ? "#2a2a3e" : "#e0e0e0"}`,
     borderRadius: "10px", padding: "10px 14px", fontSize: "13px",
@@ -116,7 +116,7 @@ export default function AdminMenu() {
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: t.bg, fontFamily: "'Segoe UI',sans-serif" }}>
-      <Navbar title={`Menu — ${admin?.kitchenName}`} backPath="/admin" backLabel="Dashboard" onLogout={handleLogout} />
+      <Navbar title={`Menu — ${admin?.kitchenName}`} backPath="/kitchen-admin/dashboard" backLabel="Dashboard" onLogout={handleLogout} />
 
       <div style={{ padding: "24px", maxWidth: "900px", margin: "0 auto" }}>
 

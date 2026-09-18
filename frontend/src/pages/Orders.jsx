@@ -152,10 +152,10 @@ export default function Orders() {
         }
       />
 
-      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "28px 24px 56px" }}>
+      <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "clamp(16px, 4vw, 28px) clamp(14px, 3vw, 24px) 56px" }}>
         <div style={{ marginBottom: "20px", opacity: animIn ? 1 : 0, transform: animIn ? "translateY(0)" : "translateY(12px)", transition: "all 0.4s ease" }}>
           <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: t.accent }}>Your experience</div>
-          <h2 style={{ fontSize: "52px", fontWeight: "700", color: t.text, margin: "10px 0 6px 0", lineHeight: 0.9 }}>Your Orders</h2>
+          <h2 style={{ fontSize: "clamp(28px, 6vw, 52px)", fontWeight: "700", color: t.text, margin: "10px 0 6px 0", lineHeight: 1.05 }}>Your Orders</h2>
           <p style={{ fontSize: "14px", color: t.textSoft, margin: 0 }}>{orders.length} order{orders.length !== 1 ? "s" : ""} total</p>
         </div>
 
@@ -284,9 +284,9 @@ function OrderCard({ order, t, onReorder, onRate, isRated }) {
 
         {/* Progress Steps */}
         <div style={{ backgroundColor: t.dark ? "#0f0f1a" : "#f9f9f9", borderRadius: "12px", padding: "14px", marginBottom: "14px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "10px", overflowX: "auto", paddingBottom: "4px", gap: "6px" }}>
             {STEPS.map((step, i) => (
-              <div key={step} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", flex: 1 }}>
+              <div key={step} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px", minWidth: "55px", flex: 1 }}>
                 <div style={{
                   width: "28px", height: "28px", borderRadius: "50%",
                   backgroundColor: i <= stepIdx ? color : (t.dark ? "#2a2a3e" : "#e0e0e0"),
@@ -297,7 +297,7 @@ function OrderCard({ order, t, onReorder, onRate, isRated }) {
                   animation: i === stepIdx ? "pulse 2s infinite" : "none",
                   transition: "all 0.3s",
                 }}>{i < stepIdx ? "✓" : i === stepIdx ? "●" : "○"}</div>
-                <p style={{ fontSize: "9px", color: i <= stepIdx ? color : t.mutedText, fontWeight: i <= stepIdx ? "700" : "400", textAlign: "center", margin: 0 }}>{step}</p>
+                <p style={{ fontSize: "9px", color: i <= stepIdx ? color : t.mutedText, fontWeight: i <= stepIdx ? "700" : "400", textAlign: "center", margin: 0, wordBreak: "break-word", lineHeight: 1.2 }}>{step.replace(/_/g, " ")}</p>
               </div>
             ))}
           </div>

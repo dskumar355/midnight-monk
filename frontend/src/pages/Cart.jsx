@@ -34,20 +34,20 @@ export default function Cart() {
   return (
     <div style={{ minHeight:"100vh", backgroundColor:t.bg, fontFamily:"'Segoe UI',sans-serif", paddingBottom:"20px" }}>
       <Navbar title="My Cart" backPath="/menu" backLabel="Menu" onLogout={handleLogout} />
-      <div style={{ padding:"24px", maxWidth:"600px", margin:"0 auto" }}>
+      <div style={{ padding:"clamp(16px, 4vw, 24px)", maxWidth:"600px", margin:"0 auto" }}>
         <h2 style={{ fontSize:"18px", fontWeight:"800", color:t.text, marginBottom:"20px" }}>🛒 {totalItems} item{totalItems>1?"s":""} in cart</h2>
 
         <div style={{ display:"flex", flexDirection:"column", gap:"12px", marginBottom:"24px" }}>
           {cart.map(item => (
-            <div key={item.id} style={{ backgroundColor:t.card, borderRadius:"12px", padding:"16px", border:t.cardBorder, boxShadow:t.shadow, display:"flex", alignItems:"center", gap:"14px" }}>
-              <div style={{ flex:1 }}>
+            <div key={item.id} style={{ backgroundColor:t.card, borderRadius:"14px", padding:"16px", border:t.cardBorder, boxShadow:t.shadow, display:"flex", alignItems:"center", justifyContent:"space-between", gap:"14px", flexWrap:"wrap" }}>
+              <div style={{ flex:"1 1 180px", minWidth:"140px" }}>
                 <p style={{ fontSize:"15px", fontWeight:"800", color:t.text, margin:"0 0 4px 0" }}>{item.name}</p>
                 <p style={{ fontSize:"13px", color:t.accent, margin:0, fontWeight:"700" }}>₹{item.price} each</p>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:"10px" }}>
-                <button onClick={() => updateQuantity(item.id, item.quantity-1)} style={{ width:"30px", height:"30px", borderRadius:"50%", border:`1.5px solid ${t.accent}`, backgroundColor:"transparent", color:t.accent, fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"700" }}>−</button>
+                <button onClick={() => updateQuantity(item.id, item.quantity-1)} style={{ width:"34px", height:"34px", borderRadius:"50%", border:`1.5px solid ${t.accent}`, backgroundColor:"transparent", color:t.accent, fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"700" }}>−</button>
                 <span style={{ fontSize:"15px", fontWeight:"800", color:t.text, minWidth:"20px", textAlign:"center" }}>{item.quantity}</span>
-                <button onClick={() => updateQuantity(item.id, item.quantity+1)} style={{ width:"30px", height:"30px", borderRadius:"50%", border:"none", backgroundColor:t.accent, color:"#fff", fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"700" }}>+</button>
+                <button onClick={() => updateQuantity(item.id, item.quantity+1)} style={{ width:"34px", height:"34px", borderRadius:"50%", border:"none", backgroundColor:t.accent, color:"#fff", fontSize:"18px", cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:"700" }}>+</button>
               </div>
               <div style={{ textAlign:"right", minWidth:"70px" }}>
                 <p style={{ fontSize:"15px", fontWeight:"800", color:t.text, margin:"0 0 4px 0" }}>₹{(item.price*item.quantity).toFixed(2)}</p>

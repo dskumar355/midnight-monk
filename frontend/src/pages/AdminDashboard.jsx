@@ -17,7 +17,7 @@ export default function AdminDashboard() {
   const [loadingToggle, setLoadingToggle] = useState(false);
 
   useEffect(() => {
-    if (!admin) { navigate("/login/admin"); return; }
+    if (!admin) { navigate("/kitchen-admin/login"); return; }
     const loadData = () => {
       api.getKitchenOrders(admin.kitchenId).then(setOrders).catch(() => { });
       api.getKitchen(admin.kitchenId).then(k => setIsOpen(k.isOpen)).catch(() => { });
@@ -41,7 +41,7 @@ export default function AdminDashboard() {
 
   if (!admin) return null;
 
-  const handleLogout = () => { logout(); navigate("/login/admin"); };
+  const handleLogout = () => { logout(); navigate("/kitchen-admin/login"); };
   const revenue = orders.reduce((s, o) => s + (o.total || 0), 0);
   const delivered = orders.filter(o => (o.status || "").toUpperCase() === "DELIVERED").length;
   const STATUS_C = {
@@ -61,21 +61,21 @@ export default function AdminDashboard() {
   };
 
   const sections = [
-    { icon: "📋", title: "Orders", desc: "View & update order statuses", btn: "VIEW ORDERS", path: "/admin/orders", color: "#805ad5" },
-    { icon: "🍲", title: "Food Items", desc: "Access food cards and change names, prices, or images", btn: "MANAGE FOOD ITEMS", path: "/admin/menu", color: "#F5A623" },
-    { icon: "📊", title: "Analytics", desc: "Orders and revenue insights", btn: "VIEW ANALYTICS", path: "/admin/analytics", color: "#27ae60" },
+    { icon: "📋", title: "Orders", desc: "View & update order statuses", btn: "VIEW ORDERS", path: "/kitchen-admin/orders", color: "#805ad5" },
+    { icon: "🍲", title: "Food Items", desc: "Access food cards and change names, prices, or images", btn: "MANAGE FOOD ITEMS", path: "/kitchen-admin/menu", color: "#F5A623" },
+    { icon: "📊", title: "Analytics", desc: "Orders and revenue insights", btn: "VIEW ANALYTICS", path: "/kitchen-admin/analytics", color: "#27ae60" },
   ];
 
   return (
     <div style={{ minHeight: "100vh", backgroundColor: "#FFFFFF", fontFamily: "'Segoe UI',sans-serif" }}>
       <Navbar title={admin.kitchenName || "Admin"} onLogout={handleLogout} />
 
-      <div style={{ padding: "28px 24px", maxWidth: "900px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
+      <div style={{ padding: "clamp(16px, 4vw, 28px) clamp(14px, 3vw, 24px)", maxWidth: "900px", margin: "0 auto", display: "flex", flexDirection: "column", gap: "24px" }}>
 
         {/* Welcome Banner */}
-        <div style={{ backgroundColor: "#0f0f1a", borderRadius: "16px", padding: "24px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ backgroundColor: "#0f0f1a", borderRadius: "16px", padding: "clamp(16px, 3vw, 24px) clamp(18px, 4vw, 28px)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
           <div>
-            <h2 style={{ fontSize: "20px", fontWeight: "900", color: "#fff", margin: "0 0 6px 0" }}>🍳 Kitchen Dashboard</h2>
+            <h2 style={{ fontSize: "clamp(17px, 3vw, 20px)", fontWeight: "900", color: "#fff", margin: "0 0 6px 0" }}>🍳 Kitchen Dashboard</h2>
             <p style={{ fontSize: "13px", color: "#888", margin: 0 }}>Welcome back, <strong style={{ color: "#F5A623" }}>{admin.username}</strong> · {admin.kitchenName}</p>
           </div>
           <div onClick={handleToggle} style={{ backgroundColor: isOpen ? "#27ae60" : "#e53e3e", borderRadius: "20px", padding: "6px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loadingToggle ? 0.6 : 1 }}>
@@ -85,7 +85,7 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: "16px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 140px), 1fr))", gap: "16px" }}>
           {[["📦", "Total Orders", orders.length], ["✅", "Delivered", delivered], ["💰", "Revenue", `₹${revenue.toFixed(0)}`]].map(([icon, label, val]) => (
             <div key={label} style={{ backgroundColor: t.card, borderRadius: "12px", padding: "20px", border: t.cardBorder, boxShadow: t.shadow, textAlign: "center" }}>
               <span style={{ fontSize: "28px" }}>{icon}</span>
@@ -113,13 +113,13 @@ export default function AdminDashboard() {
 
         {/* Food item access */}
         <section style={{ backgroundColor: t.card, borderRadius: "16px", padding: "22px", border: t.cardBorder, boxShadow: t.shadow }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
             <div>
               <p style={{ fontSize: "11px", fontWeight: "800", color: t.accent, letterSpacing: "1px", margin: "0 0 5px" }}>KITCHEN CATALOG</p>
               <h3 style={{ fontSize: "20px", fontWeight: "900", color: t.text, margin: 0 }}>Food Items & Images</h3>
               <p style={{ fontSize: "12px", color: t.subText, margin: "6px 0 0" }}>Change the image, price, name, or availability of any food card.</p>
             </div>
-            <button onClick={() => navigate("/admin/menu")} style={{ backgroundColor: t.accent, color: "#fff", border: "none", borderRadius: "8px", padding: "10px 14px", fontSize: "11px", fontWeight: "800", cursor: "pointer", whiteSpace: "nowrap" }}>
+            <button onClick={() => navigate("/kitchen-admin/menu")} style={{ backgroundColor: t.accent, color: "#fff", border: "none", borderRadius: "8px", padding: "10px 14px", fontSize: "11px", fontWeight: "800", cursor: "pointer", whiteSpace: "nowrap" }}>
               OPEN ALL FOOD ITEMS →
             </button>
           </div>
@@ -135,7 +135,7 @@ export default function AdminDashboard() {
                   <img src={item.image || "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=500&q=80"} alt={item.name} style={{ width: "100%", height: "100px", objectFit: "cover", display: "block" }} />
                   <div style={{ padding: "10px" }}>
                     <p style={{ color: t.text, fontSize: "13px", fontWeight: "800", margin: "0 0 8px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{item.name}</p>
-                    <button onClick={() => navigate("/admin/menu")} style={{ width: "100%", background: "transparent", color: t.accent, border: `1px solid ${t.borderStrong}`, borderRadius: "7px", padding: "7px", fontSize: "10px", fontWeight: "800", cursor: "pointer" }}>
+                    <button onClick={() => navigate("/kitchen-admin/menu")} style={{ width: "100%", background: "transparent", color: t.accent, border: `1px solid ${t.borderStrong}`, borderRadius: "7px", padding: "7px", fontSize: "10px", fontWeight: "800", cursor: "pointer" }}>
                       EDIT IMAGE / CARD
                     </button>
                   </div>
@@ -150,7 +150,7 @@ export default function AdminDashboard() {
           <div style={{ backgroundColor: t.card, borderRadius: "14px", padding: "20px", border: t.cardBorder, boxShadow: t.shadow }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
               <h3 style={{ fontSize: "14px", fontWeight: "800", color: t.text, margin: 0 }}>Recent Orders</h3>
-              <button onClick={() => navigate("/admin/orders")} style={{ background: "none", border: "none", color: t.accent, fontSize: "12px", fontWeight: "700", cursor: "pointer" }}>View All →</button>
+              <button onClick={() => navigate("/kitchen-admin/orders")} style={{ background: "none", border: "none", color: t.accent, fontSize: "12px", fontWeight: "700", cursor: "pointer" }}>View All →</button>
             </div>
             {orders.slice(0, 4).map(order => (
               <div key={order.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${t.dark ? "#2a2a3e" : "#f5f5f5"}` }}>

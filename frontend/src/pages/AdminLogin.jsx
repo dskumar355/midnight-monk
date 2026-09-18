@@ -13,7 +13,7 @@ export default function AdminLogin() {
     setError("");
     if (!username || !password) { setError("Username and password required"); return; }
     const res = await login(username, password);
-    if (res.success) navigate("/admin");
+    if (res.success) navigate("/kitchen-admin/dashboard");
     else setError(res.error);
   };
 
@@ -38,7 +38,7 @@ export default function AdminLogin() {
         <button style={{...S.btn, opacity: loading ? 0.7 : 1}} onClick={handleLogin} disabled={loading}>
           {loading ? "SIGNING IN..." : "SIGN IN"}
         </button>
-        <button style={S.link} onClick={() => navigate("/login")}>← Back to User Login</button>
+        <button style={S.link} onClick={() => navigate("/")}>← Back to Home</button>
       </div>
     </div>
   );

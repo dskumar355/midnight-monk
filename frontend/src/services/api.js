@@ -1,7 +1,7 @@
 // ✅ Central API service for Midnight Monk
 // All backend calls go through here
 
-const API_ROOT = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/+$/, "");
+const API_ROOT = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 const BASE_URL = `${API_ROOT}/api`;
 
 // ─────────────────────────────────────────

@@ -30,8 +30,13 @@ export default function Login() {
     if (!name.trim())          { setError("Please enter your name"); return; }
     if (mobile.length !== 10)  { setError("Mobile number must be 10 digits"); return; }
     const res = await login(name, mobile);
-    if (res.success) navigate(location.state?.from || "/flow");
-    else setError(res.error);
+    if (res.success) {
+      const redirectParam = new URLSearchParams(location.search).get("redirect");
+      const target = location.state?.from || redirectParam || "/kitchens";
+      navigate(target);
+    } else {
+      setError(res.error);
+    }
   };
 
   return (
@@ -74,7 +79,7 @@ export default function Login() {
           </button>
 
           <div style={{textAlign:"center"}}>
-            <button style={{...S.link, color:"#F5A623"}} onClick={() => navigate("/register")}>New user? Register here</button>
+            <button style={{...S.link, color:"#F5A623"}} onClick={() => navigate("/register", { state: location.state })}>New user? Register here</button>
           </div>
         </div>
       </div>

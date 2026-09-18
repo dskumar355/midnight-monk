@@ -81,15 +81,41 @@ def emit_order_update(order_id, status, kitchen_id=None):
     if kitchen_id:
         socketio.emit("kitchen_order_update", payload, room=f"kitchen_{kitchen_id}")
 
-# Make emit helper available to other modules
+def emit_rider_location(order_id, tracking_payload):
+    """Emit live GPS coordinate update to customer tracking room."""
+    socketio.emit("rider_location_update", tracking_payload, room=f"order_{order_id}")
+
+# Make emit helpers available to other modules
 app.emit_order_update = emit_order_update
+app.emit_rider_location = emit_rider_location
 
 # ─────────────────────────────────────────
-# 🌐 Health check
+# 🌐 Health check endpoints
 # ─────────────────────────────────────────
 @app.route("/")
 def home():
     return {"message": "🌙 Midnight Monk Backend Running", "status": "ok", "socketio": "enabled"}
+
+@app.route("/api/health")
+@app.route("/health")
+def health_check():
+    from datetime import datetime
+    from database.db import client
+    db_status = "connected"
+    try:
+        client.admin.command("ping")
+    except Exception as e:
+        db_status = f"disconnected: {str(e)}"
+
+    is_healthy = db_status == "connected"
+    return {
+        "status": "healthy" if is_healthy else "degraded",
+        "service": "Midnight Monk API",
+        "database": db_status,
+        "socketio": "enabled",
+        "version": "1.0.0",
+        "timestamp": datetime.utcnow().isoformat()
+    }, 200 if is_healthy else 503
 
 @app.errorhandler(404)
 def not_found(e):

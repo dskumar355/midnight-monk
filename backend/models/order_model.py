@@ -1,31 +1,37 @@
 from datetime import datetime
 import random
+import math
 
-# ✅ 10 Delivery Partners — MUST match frontend Orders.jsx DELIVERY_PARTNERS array exactly
-DELIVERY_PARTNERS = [
-    { "name": "Ravi Kumar",    "phone": "9876543210" },
-    { "name": "Suresh Babu",  "phone": "9845612378" },
-    { "name": "Arjun Singh",  "phone": "9731245680" },
-    { "name": "Kiran Reddy",  "phone": "9632587410" },
-    { "name": "Mohan Das",    "phone": "9512348765" },
-    { "name": "Vijay Naidu",  "phone": "9487561230" },
-    { "name": "Rahul Verma",  "phone": "9356124780" },
-    { "name": "Anil Sharma",  "phone": "9246813570" },
-    { "name": "Deepak Rao",   "phone": "9135724680" },
-    { "name": "Sanjay Gupta", "phone": "9024681357" },
-]
+KITCHEN_COORDINATES = {
+    "k1": {"lat": 22.3102, "lng": 73.1755, "name": "Night Bites"},
+    "k2": {"lat": 22.3215, "lng": 73.1812, "name": "Midnight Meals"},
+}
+DEFAULT_KITCHEN_COORDS = {"lat": 22.3100, "lng": 73.1750, "name": "Midnight Monk Kitchen"}
 
-def get_delivery_partner(order_id=None):
-    """
-    Pick a delivery partner deterministically based on order_id
-    so the same order always gets the same partner.
-    Falls back to random if no order_id provided.
-    """
-    if order_id:
-        idx = ord(str(order_id)[-1]) % len(DELIVERY_PARTNERS)
-    else:
-        idx = random.randint(0, len(DELIVERY_PARTNERS) - 1)
-    return DELIVERY_PARTNERS[idx]
+
+def calculate_distance(lat1, lon1, lat2, lon2):
+    """Approximate distance in km using haversine formula"""
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+
+def get_customer_coords(address, kitchen_coord):
+    """Deterministically generate customer coordinates near kitchen based on address"""
+    h = sum(ord(c) for c in (address or "Midnight Monk Delivery Address"))
+    offset_lat = (((h * 13) % 41) - 20) * 0.0008
+    offset_lng = (((h * 17) % 43) - 21) * 0.0009
+    if abs(offset_lat) < 0.004:
+        offset_lat = 0.010 if offset_lat >= 0 else -0.010
+    if abs(offset_lng) < 0.004:
+        offset_lng = 0.012 if offset_lng >= 0 else -0.012
+    return {
+        "lat": round(kitchen_coord["lat"] + offset_lat, 6),
+        "lng": round(kitchen_coord["lng"] + offset_lng, 6)
+    }
 
 
 def generate_otp():
@@ -39,7 +45,12 @@ def create_order(user, kitchen_id, items, total, address):
     Matches OrderContext.jsx addOrder() fields exactly.
     """
     user = user or {"name": "Guest Customer", "mobile": ""}
-    partner = get_delivery_partner()  # random at creation time
+    payment_method = (user.get("paymentMethod") or "COD").strip().upper()
+    is_cod = payment_method == "COD"
+    kitchen_coord = KITCHEN_COORDINATES.get(kitchen_id.strip(), DEFAULT_KITCHEN_COORDS)
+    cust_coord = get_customer_coords(address, kitchen_coord)
+    dist_km = round(max(1.2, calculate_distance(kitchen_coord["lat"], kitchen_coord["lng"], cust_coord["lat"], cust_coord["lng"])), 1)
+    eta_mins = random.choice([15, 20, 25, 30])
 
     return {
         # ✅ User info
@@ -59,15 +70,47 @@ def create_order(user, kitchen_id, items, total, address):
         "total": float(total),
 
         # ✅ Delivery
-        "address":     address.strip(),
-        "rider_name":  partner["name"],
-        "rider_phone": partner["phone"],
-        "otp":         generate_otp(),
-        "eta_minutes": random.choice([15, 20, 25, 30]),  # realistic ETA
+        "address": address.strip(),
+        "otp": generate_otp(),
+        "eta_minutes": random.choice([15, 20, 25, 30]),
+        "delivery_assignment": {
+            "partner_id": None,
+            "partner_name": "",
+            "partner_phone": "",
+            "assigned_at": None,
+            "accepted_at": None,
+            "picked_up_at": None,
+            "out_for_delivery_at": None,
+            "delivered_at": None,
+            "delivery_status": "WAITING_FOR_ASSIGNMENT",
+            "delivery_notes": "",
+        },
+        "payment_method": payment_method,
+        "payment_status": "Pending" if is_cod else "Paid",
+        "cod": {
+            "required": is_cod,
+            "amount_expected": float(total) if is_cod else 0,
+            "amount_collected": 0,
+            "collection_timestamp": None,
+            "collection_status": "PENDING" if is_cod else "COLLECTED",
+        },
 
-        # ✅ Status — matches frontend STEPS array
-        # "Placed" → "Preparing" → "Out for Delivery" → "Delivered"
-        "status": "Placed",
+        "status": "ORDER_PLACED",
+
+        # ✅ Live Tracking
+        "tracking": {
+            "kitchen_lat": kitchen_coord["lat"],
+            "kitchen_lng": kitchen_coord["lng"],
+            "customer_lat": cust_coord["lat"],
+            "customer_lng": cust_coord["lng"],
+            "rider_lat": kitchen_coord["lat"],
+            "rider_lng": kitchen_coord["lng"],
+            "rider_progress": 0.0,
+            "eta_minutes": eta_mins,
+            "distance_km": dist_km,
+            "started_at": None,
+            "last_updated": datetime.utcnow().isoformat(),
+        },
 
         # ✅ Timestamps
         "date":      datetime.utcnow().isoformat(),
@@ -91,11 +134,16 @@ def format_order(order):
         "items":      order.get("items", []),
         "total":      order.get("total", 0),
         "address":    order.get("address", ""),
-        "status":     order.get("status", "Placed"),
-        "riderName":  order.get("rider_name", "Delivery Partner"),  # ✅ frontend uses order.riderName
-        "riderPhone": order.get("rider_phone", ""),                 # ✅ frontend uses order.riderPhone
+        "status":     order.get("status", "ORDER_PLACED"),
+        "riderName":  order.get("delivery_assignment", {}).get("partner_name", ""),
+        "riderPhone": order.get("delivery_assignment", {}).get("partner_phone", ""),
         "otp":        order.get("otp", 0),
         "etaMinutes": order.get("eta_minutes", 20),
+        "paymentMethod": order.get("payment_method", "COD"),
+        "paymentStatus": order.get("payment_status", "Pending"),
+        "deliveryAssignment": order.get("delivery_assignment", {}),
+        "tracking":   order.get("tracking", {}),
+        "cod": order.get("cod", {}),
         "date":       order.get("date", ""),
         "createdAt":  order.get("createdAt", ""),
     }
@@ -127,14 +175,24 @@ def validate_order(user, kitchen_id, items, total, address):
     return True, None
 
 
-# ✅ Valid status transitions — prevents invalid status jumps
 STATUS_FLOW = {
-    "Placed":           "Preparing",
-    "Preparing":        "Out for Delivery",
-    "Out for Delivery": "Delivered",
-    "Delivered":        None,  # terminal state
+    "ORDER_PLACED": ["ACCEPTED", "CANCELLED", "PAYMENT_FAILED"],
+    "ACCEPTED": ["PREPARING", "CANCELLED"],
+    "PREPARING": ["READY", "CANCELLED"],
+    "READY": ["ASSIGNED", "CANCELLED"],
+    "ASSIGNED": ["PICKED_UP", "REJECTED", "CANCELLED"],
+    "PICKED_UP": ["OUT_FOR_DELIVERY"],
+    "OUT_FOR_DELIVERY": ["DELIVERED"],
+    "DELIVERED": [],
+    "CANCELLED": [],
+    "REJECTED": [],
+    "PAYMENT_FAILED": [],
 }
 
 def get_next_status(current_status):
-    """Get the next valid status for an order"""
-    return STATUS_FLOW.get(current_status)
+    next_steps = STATUS_FLOW.get(current_status, [])
+    return next_steps[0] if next_steps else None
+
+
+def is_valid_transition(current_status, new_status):
+    return new_status in STATUS_FLOW.get(current_status, [])

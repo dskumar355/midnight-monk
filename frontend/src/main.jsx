@@ -8,6 +8,7 @@ import { ThemeProvider } from "./context/ThemeContext.jsx";
 import { UserAuthProvider } from "./context/UserAuthContext.jsx";
 import { AdminAuthProvider } from "./context/AdminAuthContext.jsx";
 import { MasterAuthProvider } from "./context/MasterAuthContext.jsx";
+import { DeliveryAuthProvider } from "./context/DeliveryAuthContext.jsx";
 import { CartProvider } from "./context/CartContext.jsx";
 import { OrderProvider } from "./context/OrderContext.jsx";
 import { SupportProvider } from "./context/SupportContext.jsx";
@@ -25,20 +26,22 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <ErrorBoundary>
         <ThemeProvider>
           <MasterAuthProvider>
-            <AdminAuthProvider>
-              <UserAuthProvider>
-                <CartProvider>
-                  <OrderProvider>
-                    <SupportProvider>
-                      <NotificationProvider>
-                        <App />
-                        <InstallPWA />
-                      </NotificationProvider>
-                    </SupportProvider>
-                  </OrderProvider>
-                </CartProvider>
-              </UserAuthProvider>
-            </AdminAuthProvider>
+            <DeliveryAuthProvider>
+              <AdminAuthProvider>
+                <UserAuthProvider>
+                  <CartProvider>
+                    <OrderProvider>
+                      <SupportProvider>
+                        <NotificationProvider>
+                          <App />
+                          <InstallPWA />
+                        </NotificationProvider>
+                      </SupportProvider>
+                    </OrderProvider>
+                  </CartProvider>
+                </UserAuthProvider>
+              </AdminAuthProvider>
+            </DeliveryAuthProvider>
           </MasterAuthProvider>
         </ThemeProvider>
       </ErrorBoundary>

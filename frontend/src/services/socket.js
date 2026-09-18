@@ -34,10 +34,21 @@ export function getSocket() {
 export function subscribeToOrder(orderId, callback) {
   const s = getSocket();
   s.emit("join_order", { orderId });
-  s.on("order_status_update", (data) => {
-    if (data.orderId === orderId) callback(data);
-  });
-  return () => s.off("order_status_update");
+
+  const onStatus = (data) => {
+    if (data?.orderId === orderId) callback(data);
+  };
+  const onLocation = (data) => {
+    if (data?.orderId === orderId) callback(data);
+  };
+
+  s.on("order_status_update", onStatus);
+  s.on("rider_location_update", onLocation);
+
+  return () => {
+    s.off("order_status_update", onStatus);
+    s.off("rider_location_update", onLocation);
+  };
 }
 
 // Join a kitchen room for incoming order notifications

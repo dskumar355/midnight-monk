@@ -4,7 +4,15 @@ export default function LogoutButton() {
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.clear(); // clears user/admin data
+    localStorage.removeItem("mm_user_token");
+    localStorage.removeItem("mm_token");
+    localStorage.removeItem("mm_user");
+    localStorage.removeItem("mm_admin_token");
+    localStorage.removeItem("mm_admin");
+    localStorage.removeItem("mm_master_token");
+    localStorage.removeItem("mm_master");
+    localStorage.removeItem("mm_delivery_token");
+    localStorage.removeItem("mm_delivery_partner");
     navigate("/login");
   };
 

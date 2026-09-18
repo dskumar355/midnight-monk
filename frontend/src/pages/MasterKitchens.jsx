@@ -13,7 +13,7 @@ export default function MasterKitchens() {
 
   useEffect(() => {
     if (!master) { navigate("/master/login"); return; }
-    api.getKitchens().then(setKitchens);
+    api.getAllKitchens().then(setKitchens).catch(err => setError(err.message));
   }, [master]);
 
   const handleAdd = async () => {
@@ -29,9 +29,14 @@ export default function MasterKitchens() {
   };
 
   const handleDelete = async (kitchenId) => {
-    if (!confirm("Delete this kitchen?")) return;
-    await api.deleteKitchen(kitchenId);
-    setKitchens(prev => prev.filter(k => k.kitchen_id !== kitchenId));
+    if (!confirm(`Delete kitchen "${kitchenId}"?`)) return;
+    setError("");
+    try {
+      await api.deleteKitchen(kitchenId);
+      setKitchens(prev => prev.filter(k => k.kitchen_id !== kitchenId && k.id !== kitchenId));
+    } catch (err) {
+      setError(err.message || "Failed to delete kitchen");
+    }
   };
 
   return (
@@ -61,11 +66,17 @@ export default function MasterKitchens() {
         {/* Kitchens List */}
         <div style={S.list}>
           {kitchens.map(k => (
-            <div key={k.id} style={S.card}>
+            <div key={k.id || k.kitchen_id} style={S.card}>
               <div style={S.cardRow}>
                 <div>
-                  <div style={S.openBadge}>OPEN</div>
-                  <h3 style={S.kitchenName}>{k.name}</h3>
+                  <div style={{
+                    ...S.openBadge,
+                    backgroundColor: (k.isOpen ?? k.is_open ?? true) ? "#e6f9f0" : "#fee2e2",
+                    color: (k.isOpen ?? k.is_open ?? true) ? "#27ae60" : "#dc2626",
+                  }}>
+                    {(k.isOpen ?? k.is_open ?? true) ? "OPEN" : "CLOSED"}
+                  </div>
+                  <h3 style={S.kitchenName}>{k.name || k.kitchen_name}</h3>
                   <p style={S.meta}>🆔 {k.kitchen_id} · ⭐ {k.rating}</p>
                   {k.location && <p style={S.meta}>📍 {k.location}</p>}
                   <p style={S.tag}>{k.tag}</p>

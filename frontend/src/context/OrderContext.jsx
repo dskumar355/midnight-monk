@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { api } from "../services/api";
 
 const OrderContext = createContext();
@@ -7,6 +7,20 @@ export function OrderProvider({ children }) {
   const [orders, setOrders]   = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState("");
+
+  // Auto-fetch user orders on mount if logged in
+  useEffect(() => {
+    try {
+      const userStr = localStorage.getItem("mm_user");
+      const token = localStorage.getItem("mm_user_token") || localStorage.getItem("mm_token");
+      if (userStr && token) {
+        const u = JSON.parse(userStr);
+        if (u?.mobile) {
+          fetchUserOrders(u.mobile);
+        }
+      }
+    } catch {}
+  }, []);
 
   // ✅ Place order — calls backend
   const addOrder = async (orderData) => {
@@ -60,14 +74,36 @@ export function OrderProvider({ children }) {
     } finally { setLoading(false); }
   };
 
+  const fetchDeliveryOrders = async () => {
+    setLoading(true); setError("");
+    try {
+      const data = await api.getDeliveryOrders();
+      setOrders(data);
+      return data;
+    } catch (err) {
+      setError(err.message);
+      return [];
+    } finally { setLoading(false); }
+  };
+
   // ✅ Update order status
   const updateOrderStatus = async (orderId, status) => {
     try {
       const res = await api.updateOrderStatus(orderId, status);
       setOrders(prev =>
-        prev.map(o => o.id === orderId ? { ...o, status } : o)
+        prev.map(o => o.id === orderId ? res.order : o)
       );
       return { success: true };
+    } catch (err) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const updateDeliveryStatus = async (orderId, status, payload = {}) => {
+    try {
+      const res = await api.updateDeliveryStatus(orderId, status, payload);
+      setOrders(prev => prev.map(o => o.id === orderId ? res.order : o));
+      return { success: true, order: res.order };
     } catch (err) {
       return { success: false, error: err.message };
     }
@@ -80,7 +116,9 @@ export function OrderProvider({ children }) {
       fetchUserOrders,
       fetchKitchenOrders,
       fetchAllOrders,
+      fetchDeliveryOrders,
       updateOrderStatus,
+      updateDeliveryStatus,
     }}>
       {children}
     </OrderContext.Provider>

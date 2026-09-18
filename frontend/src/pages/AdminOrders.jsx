@@ -3,11 +3,12 @@ import { useAdminAuth } from "../context/AdminAuthContext";
 import { useOrders } from "../context/OrderContext";
 import { useTheme } from "../context/ThemeContext";
 import { useNavigate } from "react-router-dom";
+import { subscribeToKitchen } from "../services/socket";
 import Navbar from "../components/Navbar";
 import SupportWidget from "../components/SupportWidget";
 
-const STEPS = ["Placed", "Preparing", "Out for Delivery", "Delivered"];
-const STATUS_C = { Placed: "#3498db", Preparing: "#e67e22", "Out for Delivery": "#9b59b6", Delivered: "#27ae60" };
+const STEPS = ["ORDER_PLACED", "ACCEPTED", "PREPARING", "READY"];
+const STATUS_C = { ORDER_PLACED: "#3498db", ACCEPTED: "#0ea5e9", PREPARING: "#e67e22", READY: "#8b5cf6", ASSIGNED: "#7c3aed", PICKED_UP: "#f97316", OUT_FOR_DELIVERY: "#22c55e", DELIVERED: "#16a34a" };
 
 export default function AdminOrders() {
   const navigate = useNavigate();
@@ -21,10 +22,18 @@ export default function AdminOrders() {
     if (!admin) { navigate("/login/admin"); return; }
     fetchKitchenOrders(admin.kitchenId);
 
+    const unsub = subscribeToKitchen(admin.kitchenId, () => {
+      fetchKitchenOrders(admin.kitchenId);
+    });
+
     const interval = setInterval(() => {
       fetchKitchenOrders(admin.kitchenId);
     }, 10000);
-    return () => clearInterval(interval);
+
+    return () => {
+      if (unsub) unsub();
+      clearInterval(interval);
+    };
   }, [admin]);
 
   const handleNext = async (order) => {
@@ -51,7 +60,7 @@ export default function AdminOrders() {
       <div style={{ padding: "24px", maxWidth: "800px", margin: "0 auto" }}>
         {/* Filters */}
         <div style={{ display: "flex", gap: "8px", marginBottom: "20px", flexWrap: "wrap" }}>
-          {["All", "Placed", "Preparing", "Out for Delivery", "Delivered"].map(f => (
+          {["All", "ORDER_PLACED", "ACCEPTED", "PREPARING", "READY", "ASSIGNED", "PICKED_UP", "OUT_FOR_DELIVERY", "DELIVERED"].map(f => (
             <button key={f} onClick={() => setFilter(f)} style={{
               padding: "6px 14px", borderRadius: "20px", border: "none", cursor: "pointer",
               fontSize: "12px", fontWeight: "700", fontFamily: "'Segoe UI',sans-serif",
@@ -90,7 +99,7 @@ export default function AdminOrders() {
                   ))}
                 </div>
 
-                {order.status !== "Delivered" && (
+                {STEPS.includes(order.status) && order.status !== "READY" && (
                   <button onClick={() => handleNext(order)} disabled={updating === order.id} style={{
                     width: "100%", backgroundColor: t.dark ? "#1a1a2e" : "#0f0f1a", color: "#F5A623",
                     border: "none", borderRadius: "8px", padding: "11px", fontSize: "13px",
@@ -99,6 +108,9 @@ export default function AdminOrders() {
                   }}>
                     {updating === order.id ? "Updating..." : `Mark as ${STEPS[STEPS.indexOf(order.status) + 1]} →`}
                   </button>
+                )}
+                {order.status === "READY" && (
+                  <div style={{ fontSize: "12px", color: t.subText, fontWeight: "700" }}>Waiting for delivery partner assignment</div>
                 )}
               </div>
             ))}

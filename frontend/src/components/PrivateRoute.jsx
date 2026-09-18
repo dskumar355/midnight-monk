@@ -1,13 +1,16 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useUserAuth } from '../context/UserAuthContext.jsx';
 import { useAdminAuth } from '../context/AdminAuthContext.jsx';
 import { useMasterAuth } from '../context/MasterAuthContext.jsx';
+import { useDeliveryAuth } from '../context/DeliveryAuthContext.jsx';
 
 export default function PrivateRoute({ children, role }) {
+    const location = useLocation();
+
     if (role === 'user') {
         const { user } = useUserAuth();
-        return user ? children : <Navigate to="/login" replace />;
+        return user ? children : <Navigate to="/login" state={{ from: location.pathname }} replace />;
     }
 
     if (role === 'admin') {
@@ -18,6 +21,11 @@ export default function PrivateRoute({ children, role }) {
     if (role === 'master') {
         const { master } = useMasterAuth();
         return master ? children : <Navigate to="/master/login" replace />;
+    }
+
+    if (role === 'delivery') {
+        const { partner } = useDeliveryAuth();
+        return partner ? children : <Navigate to="/delivery/login" replace />;
     }
 
     return <Navigate to="/" replace />;

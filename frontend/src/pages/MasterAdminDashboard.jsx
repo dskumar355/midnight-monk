@@ -23,6 +23,9 @@ export default function MasterAdminDashboard() {
     { icon: "🎧", title: "Support Tickets",     desc: "View and resolve user or admin queries",         btnLabel: "VIEW TICKETS",    path: "/master/support",  color: "#e53e3e", bg: "#fff5f5", border: "#fed7d7" },
     { icon: "🎟️", title: "Coupon Management",   desc: "Create and manage discount coupons & promos",    btnLabel: "MANAGE COUPONS",  path: "/master/coupons",  color: "#e67e22", bg: "#fff8ee", border: "#fde8b8" },
     { icon: "🔐", title: "Security & Audit",     desc: "View login attempts, admin actions & security events", btnLabel: "VIEW AUDIT LOGS", path: "/master/audit", color: "#2d3748", bg: "#edf2f7", border: "#cbd5e0" },
+    { icon: "🛵", title: "Delivery Partners",   desc: "Create and manage delivery partner accounts, availability and status", btnLabel: "MANAGE PARTNERS", path: "/master/delivery-partners", color: "#f59e0b", bg: "#fff7ed", border: "#fed7aa" },
+    { icon: "🚚", title: "Active Deliveries",    desc: "Monitor live orders, assignment status and delivery activity", btnLabel: "VIEW DELIVERIES", path: "/master/active-deliveries", color: "#10b981", bg: "#ecfdf5", border: "#a7f3d0" },
+    { icon: "📜", title: "Delivery History",    desc: "Review completed and cancelled deliveries and order outcomes", btnLabel: "VIEW HISTORY", path: "/master/delivery-history", color: "#6366f1", bg: "#eef2ff", border: "#c7d2fe" },
   ];
 
   return (

@@ -18,9 +18,15 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     if (!admin) { navigate("/login/admin"); return; }
-    api.getKitchenOrders(admin.kitchenId).then(setOrders).catch(() => { });
-    api.getKitchen(admin.kitchenId).then(k => setIsOpen(k.isOpen)).catch(() => { });
+    const loadData = () => {
+      api.getKitchenOrders(admin.kitchenId).then(setOrders).catch(() => { });
+      api.getKitchen(admin.kitchenId).then(k => setIsOpen(k.isOpen)).catch(() => { });
+    };
+    loadData();
     api.getMenu(admin.kitchenId).then(setMenuItems).catch(() => { }).finally(() => setMenuLoading(false));
+
+    const interval = setInterval(loadData, 10000);
+    return () => clearInterval(interval);
   }, [admin]);
 
   const handleToggle = async () => {
@@ -37,8 +43,22 @@ export default function AdminDashboard() {
 
   const handleLogout = () => { logout(); navigate("/login/admin"); };
   const revenue = orders.reduce((s, o) => s + (o.total || 0), 0);
-  const delivered = orders.filter(o => o.status === "Delivered").length;
-  const STATUS_C = { Placed: "#3498db", Preparing: "#e67e22", "Out for Delivery": "#9b59b6", Delivered: "#27ae60" };
+  const delivered = orders.filter(o => (o.status || "").toUpperCase() === "DELIVERED").length;
+  const STATUS_C = {
+    ORDER_PLACED: "#3498db",
+    ACCEPTED: "#0ea5e9",
+    PREPARING: "#e67e22",
+    READY: "#8b5cf6",
+    ASSIGNED: "#7c3aed",
+    PICKED_UP: "#f97316",
+    OUT_FOR_DELIVERY: "#22c55e",
+    DELIVERED: "#16a34a",
+    CANCELLED: "#e53e3e",
+    Placed: "#3498db",
+    Preparing: "#e67e22",
+    "Out for Delivery": "#22c55e",
+    Delivered: "#16a34a",
+  };
 
   const sections = [
     { icon: "📋", title: "Orders", desc: "View & update order statuses", btn: "VIEW ORDERS", path: "/admin/orders", color: "#805ad5" },

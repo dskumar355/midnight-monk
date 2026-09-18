@@ -9,9 +9,10 @@ import { subscribeToOrder } from "../services/socket";
 import { requestNotificationPermission, notifyOrderStatus } from "../services/pushNotifications";
 import Navbar from "../components/Navbar";
 import RatingModal from "../components/RatingModal";
+import LeafletTrackingMap from "../components/LeafletTrackingMap";
 
-const STEPS = ["Placed", "Preparing", "Out for Delivery", "Delivered"];
-const STATUS_C = { Placed: "#3498db", Preparing: "#e67e22", "Out for Delivery": "#9b59b6", Delivered: "#27ae60" };
+const STEPS = ["ORDER_PLACED", "ACCEPTED", "PREPARING", "READY", "ASSIGNED", "PICKED_UP", "OUT_FOR_DELIVERY", "DELIVERED"];
+const STATUS_C = { ORDER_PLACED: "#3498db", ACCEPTED: "#0ea5e9", PREPARING: "#e67e22", READY: "#8b5cf6", ASSIGNED: "#7c3aed", PICKED_UP: "#f97316", OUT_FOR_DELIVERY: "#22c55e", DELIVERED: "#16a34a" };
 
 const getAvatar = (name) => {
   const avatars = ["🧑", "👨", "🧔", "👦", "🧑", "👨", "🧔", "👦", "🧑", "👨"];
@@ -100,7 +101,7 @@ export default function Orders() {
     socketUnsubs.current.forEach(fn => fn?.());
     socketUnsubs.current = [];
 
-    const activeOrders = orders.filter(o => o.status !== "Delivered");
+    const activeOrders = orders.filter(o => o.status !== "DELIVERED");
     activeOrders.forEach(order => {
       const unsub = subscribeToOrder(order.id, (data) => {
         setLiveToast(`🔔 Order #${order.id.slice(-6).toUpperCase()}: ${data.status}`);
@@ -116,7 +117,7 @@ export default function Orders() {
 
   // ── Check rated status for delivered orders ──
   useEffect(() => {
-    const deliveredOrders = orders.filter(o => o.status === "Delivered");
+    const deliveredOrders = orders.filter(o => o.status === "DELIVERED");
     deliveredOrders.forEach(async (order) => {
       if (!ratedOrderIds.has(order.id)) {
         try {
@@ -151,8 +152,6 @@ export default function Orders() {
         }
       />
 
-      <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
       <div style={{ maxWidth: "1100px", margin: "0 auto", padding: "28px 24px 56px" }}>
         <div style={{ marginBottom: "20px", opacity: animIn ? 1 : 0, transform: animIn ? "translateY(0)" : "translateY(12px)", transition: "all 0.4s ease" }}>
           <div style={{ fontSize: "11px", letterSpacing: "0.12em", textTransform: "uppercase", color: t.accent }}>Your experience</div>
@@ -161,7 +160,7 @@ export default function Orders() {
         </div>
 
         <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
-          {['All', 'Placed', 'Preparing', 'Out for Delivery', 'Delivered'].map(f => (
+          {['All', 'ORDER_PLACED', 'ACCEPTED', 'PREPARING', 'READY', 'ASSIGNED', 'PICKED_UP', 'OUT_FOR_DELIVERY', 'DELIVERED'].map(f => (
             <button key={f} onClick={() => setFilter(f)} style={{
               padding: "10px 16px",
               borderRadius: "999px",
@@ -230,11 +229,11 @@ export default function Orders() {
 //  ORDER CARD
 // ═══════════════════════════════════════════════
 function OrderCard({ order, t, onReorder, onRate, isRated }) {
+  const navigate = useNavigate();
   const stepIdx = STEPS.indexOf(order.status);
   const color = STATUS_C[order.status] || "#888";
-  const isActive = order.status !== "Delivered";
-  // A rider is only dispatched after the kitchen marks the order out for delivery.
-  const showMap = order.status === "Out for Delivery";
+  const isActive = order.status !== "DELIVERED";
+  const showMap = order.status === "OUT_FOR_DELIVERY";
 
   const riderName = order.riderName || "Delivery Partner";
   const riderPhone = order.riderPhone || "9876543210";
@@ -248,9 +247,7 @@ function OrderCard({ order, t, onReorder, onRate, isRated }) {
       {/* Status Banner */}
       <div style={{ backgroundColor: color, padding: "10px 18px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-          <span style={{ fontSize: "16px" }}>
-            {order.status === "Placed" ? "📋" : order.status === "Preparing" ? "🍳" : order.status === "Out for Delivery" ? "🛵" : "✅"}
-          </span>
+          <span style={{ fontSize: "16px" }}>{order.status === "OUT_FOR_DELIVERY" ? "🛵" : order.status === "DELIVERED" ? "✅" : "📦"}</span>
           <span style={{ fontSize: "13px", fontWeight: "800", color: "#fff" }}>{order.status}</span>
         </div>
         <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.85)", fontWeight: "600" }}>
@@ -305,11 +302,40 @@ function OrderCard({ order, t, onReorder, onRate, isRated }) {
             ))}
           </div>
           <div style={{ height: "4px", backgroundColor: t.dark ? "#2a2a3e" : "#e0e0e0", borderRadius: "2px", margin: "0 14px" }}>
-            <div style={{ height: "100%", backgroundColor: color, borderRadius: "2px", width: `${(stepIdx / 3) * 100}%`, transition: "width 0.6s ease", boxShadow: `0 0 6px ${color}` }} />
+            <div style={{ height: "100%", backgroundColor: color, borderRadius: "2px", width: `${stepIdx <= 0 ? 0 : (stepIdx / (STEPS.length - 1)) * 100}%`, transition: "width 0.6s ease", boxShadow: `0 0 6px ${color}` }} />
           </div>
         </div>
 
-        {/* 🗺️ LIVE MAP — shows for all active orders */}
+        {/* ── 🗺️ LIVE ORDER TRACKING BUTTON ── */}
+        {isActive && (
+          <button
+            onClick={() => navigate(`/track-order/${order.id}`)}
+            style={{
+              width: "100%",
+              padding: "12px",
+              marginBottom: "14px",
+              background: "linear-gradient(135deg, #C9783E, #9F4F2D)",
+              color: "#fff",
+              border: "none",
+              borderRadius: "12px",
+              fontSize: "13px",
+              fontWeight: "800",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: "8px",
+              boxShadow: "0 4px 14px rgba(201,120,62,0.3)",
+              transition: "transform 0.15s",
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+          >
+            <span>🗺️</span> Open Live Order Tracking →
+          </button>
+        )}
+
+        {/* 🗺️ LIVE MAP — shows for out for delivery orders */}
         {showMap && (
           <RiderMap order={order} t={t} color={color} />
         )}
@@ -317,6 +343,7 @@ function OrderCard({ order, t, onReorder, onRate, isRated }) {
         {/* Delivery Partner */}
         <div style={{ backgroundColor: t.dark ? "#1a1a2e" : "#f0f7ff", borderRadius: "12px", padding: "12px 14px", marginBottom: "14px", border: `1px solid ${t.dark ? "#2a3a5e" : "#dbeafe"}` }}>
           <p style={{ fontSize: "10px", fontWeight: "800", color: t.mutedText, margin: "0 0 8px 0", letterSpacing: "0.8px" }}>DELIVERY PARTNER</p>
+          {!order.deliveryAssignment?.partner_name && <p style={{ margin: 0, fontSize: "12px", color: t.subText }}>A partner will be assigned once the kitchen finishes prep.</p>}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
               <div style={{ width: "38px", height: "38px", borderRadius: "50%", backgroundColor: color + "22", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "20px" }}>
@@ -401,186 +428,70 @@ function OrderCard({ order, t, onReorder, onRate, isRated }) {
 }
 
 // ═══════════════════════════════════════════════
-//  RIDER MAP COMPONENT (Leaflet + simulated GPS)
+//  RIDER MAP COMPONENT (Leaflet + OpenStreetMap Live Tracking)
 // ═══════════════════════════════════════════════
 function RiderMap({ order, t, color }) {
-  const mapRef = useRef(null);
-  const mapInstance = useRef(null);
-  const riderMarker = useRef(null);
-  const animFrame = useRef(null);
-  const progressRef = useRef(0);
-  const [mapReady, setMapReady] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [eta, setEta] = useState(order.etaMinutes || 20);
-  const [coords, setCoords] = useState(null);
+  const navigate = useNavigate();
 
-  // Kitchen coords — use a fixed offset from delivery address
-  // (simulates kitchen being ~1-2km away)
-  const getKitchenCoord = (userCoord) => ({
-    lat: userCoord.lat + (Math.random() * 0.02 - 0.01) + 0.012,
-    lng: userCoord.lng + (Math.random() * 0.02 - 0.01) + 0.008,
-  });
-
-  useEffect(() => {
-    // Geocode the delivery address
-    geocodeAddress(order.address).then(coord => {
-      if (coord) {
-        setCoords(coord);
-      } else {
-        // Fallback: use Bangalore center if geocoding fails
-        setCoords({ lat: 12.9716, lng: 77.5946 });
-      }
-      setLoading(false);
-    });
-  }, [order.address]);
-
-  useEffect(() => {
-    if (!coords || !mapRef.current || mapInstance.current) return;
-
-    // Dynamically load Leaflet
-    const loadLeaflet = async () => {
-      if (!window.L) {
-        await new Promise((resolve) => {
-          const script = document.createElement("script");
-          script.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-          script.onload = resolve;
-          document.head.appendChild(script);
-        });
-      }
-
-      const L = window.L;
-      const userCoord = coords;
-      const kitchenCoord = getKitchenCoord(userCoord);
-      const midCoord = interpolate(kitchenCoord, userCoord, 0.5);
-
-      // Init map centered between kitchen and user
-      const map = L.map(mapRef.current, {
-        zoomControl: false,
-        attributionControl: false,
-        dragging: true,
-        scrollWheelZoom: false,
-      }).setView([midCoord.lat, midCoord.lng], 14);
-
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png").addTo(map);
-
-      // ── User destination marker (home icon) ──
-      const userIcon = L.divIcon({
-        html: `<div style="background:#27ae60;width:36px;height:36px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">
-                 <span style="transform:rotate(45deg);font-size:16px">🏠</span>
-               </div>`,
-        iconSize: [36, 36], iconAnchor: [18, 36], className: "",
-      });
-
-      // ── Kitchen marker ──
-      const kitchenIcon = L.divIcon({
-        html: `<div style="background:#e67e22;width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.3)">
-                 <span style="font-size:16px">🍳</span>
-               </div>`,
-        iconSize: [34, 34], iconAnchor: [17, 17], className: "",
-      });
-
-      // ── Rider marker (animated 🛵) ──
-      const riderIcon = L.divIcon({
-        html: `<div id="rider-pin" style="background:${color};width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:3px solid #fff;box-shadow:0 3px 12px rgba(0,0,0,0.4);transition:all 0.3s">
-                 <span style="font-size:20px">🛵</span>
-               </div>`,
-        iconSize: [40, 40], iconAnchor: [20, 20], className: "",
-      });
-
-      L.marker([userCoord.lat, userCoord.lng], { icon: userIcon })
-        .addTo(map)
-        .bindPopup("📍 Your Location");
-
-      L.marker([kitchenCoord.lat, kitchenCoord.lng], { icon: kitchenIcon })
-        .addTo(map)
-        .bindPopup("🍳 Kitchen");
-
-      // ── Dashed route line ──
-      L.polyline([
-        [kitchenCoord.lat, kitchenCoord.lng],
-        [userCoord.lat, userCoord.lng],
-      ], {
-        color: color, weight: 3, dashArray: "8, 8", opacity: 0.7,
-      }).addTo(map);
-
-      // ── Rider starts at kitchen ──
-      const rider = L.marker([kitchenCoord.lat, kitchenCoord.lng], { icon: riderIcon }).addTo(map);
-      riderMarker.current = rider;
-      mapInstance.current = map;
-
-      // ── Animate rider along the route ──
-      // Full journey = 60 seconds simulation (looks real)
-      const DURATION = 60000;
-      const startTime = Date.now() - (progressRef.current * DURATION);
-
-      const animate = () => {
-        const elapsed = Date.now() - startTime;
-        const t_val = Math.min(elapsed / DURATION, 1);
-        progressRef.current = t_val;
-
-        const pos = interpolate(kitchenCoord, userCoord, t_val);
-        rider.setLatLng([pos.lat, pos.lng]);
-
-        // Update ETA countdown
-        const remaining = Math.max(0, Math.round((1 - t_val) * (order.etaMinutes || 20)));
-        setEta(remaining);
-
-        if (t_val < 1) {
-          animFrame.current = requestAnimationFrame(animate);
-        } else {
-          // Rider reached destination
-          rider.setLatLng([userCoord.lat, userCoord.lng]);
-          setEta(0);
-        }
-      };
-
-      animFrame.current = requestAnimationFrame(animate);
-      setMapReady(true);
-    };
-
-    loadLeaflet();
-
-    return () => {
-      if (animFrame.current) cancelAnimationFrame(animFrame.current);
-      if (mapInstance.current) {
-        mapInstance.current.remove();
-        mapInstance.current = null;
-      }
-    };
-  }, [coords]);
-
-  if (loading) return (
-    <div style={{ height: "200px", borderRadius: "12px", backgroundColor: t.dark ? "#1a1a2e" : "#f0f0f0", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "14px", color: t.subText, fontSize: "13px", fontWeight: "600" }}>
-      🗺️ Loading map...
-    </div>
-  );
+  const trackingData = {
+    order_id: order.id,
+    status: order.status,
+    rider: {
+      lat: order.tracking?.rider_lat,
+      lng: order.tracking?.rider_lng,
+      name: order.riderName || "Delivery Partner",
+      phone: order.riderPhone || "9876543210",
+    },
+    customer: {
+      lat: order.tracking?.customer_lat,
+      lng: order.tracking?.customer_lng,
+      address: order.address,
+    },
+    kitchen: {
+      lat: order.tracking?.kitchen_lat,
+      lng: order.tracking?.kitchen_lng,
+      name: order.kitchenName || "Kitchen",
+      kitchen_id: order.kitchenId,
+    },
+    eta_minutes: order.tracking?.eta_minutes || order.etaMinutes || 15,
+    distance_km: order.tracking?.distance_km || 3.2,
+    progress: order.tracking?.rider_progress || 0.45,
+  };
 
   return (
     <div style={{ marginBottom: "14px" }}>
-      {/* Map Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-          <div style={{ width: "8px", height: "8px", borderRadius: "50%", backgroundColor: color, animation: "pulse 1.5s infinite" }} />
-          <span style={{ fontSize: "12px", fontWeight: "800", color: t.text }}>
-            {order.status === "Out for Delivery" ? "Rider is on the way!" : order.status === "Preparing" ? "Order being prepared" : "Order placed"}
-          </span>
-        </div>
-        <span style={{ fontSize: "12px", fontWeight: "700", color: color }}>
-          {eta > 0 ? `⏱️ ${eta} min away` : "🎉 Arriving now!"}
-        </span>
-      </div>
-
-      {/* Map Container */}
-      <div style={{ position: "relative", borderRadius: "14px", overflow: "hidden", border: `2px solid ${color}33`, boxShadow: `0 4px 16px ${color}22` }}>
-        <div ref={mapRef} style={{ height: "220px", width: "100%" }} />
-
-        {/* Legend overlay */}
-        <div style={{ position: "absolute", bottom: "10px", left: "10px", backgroundColor: "rgba(0,0,0,0.75)", borderRadius: "8px", padding: "6px 10px", zIndex: 1000, display: "flex", gap: "12px" }}>
-          <span style={{ fontSize: "11px", color: "#fff" }}>🍳 Kitchen</span>
-          <span style={{ fontSize: "11px", color: "#fff" }}>🛵 Rider</span>
-          <span style={{ fontSize: "11px", color: "#fff" }}>🏠 You</span>
-        </div>
-      </div>
+      <LeafletTrackingMap
+        trackingData={trackingData}
+        orderStatus={order.status}
+        etaMinutes={trackingData.eta_minutes}
+        distanceKm={trackingData.distance_km}
+        height="240px"
+        t={t}
+      />
+      <button
+        onClick={() => navigate(`/track-order/${order.id}`)}
+        style={{
+          width: "100%",
+          padding: "10px",
+          marginTop: "10px",
+          backgroundColor: t.dark ? "rgba(201,120,62,0.15)" : "#FFF8EE",
+          color: t.accent || "#C9783E",
+          border: `1.5px solid ${t.accent || "#C9783E"}`,
+          borderRadius: "10px",
+          fontSize: "12px",
+          fontWeight: "800",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: "6px",
+          transition: "transform 0.15s",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.transform = "translateY(-1px)")}
+        onMouseLeave={(e) => (e.currentTarget.style.transform = "translateY(0)")}
+      >
+        <span>🗺️</span> Full Screen Live Tracking →
+      </button>
     </div>
   );
 }

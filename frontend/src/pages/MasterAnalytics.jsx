@@ -14,9 +14,7 @@ export default function MasterAnalytics() {
     if (!master) { navigate("/master/login"); return; }
     Promise.all([
       api.getOrderStats(),
-      fetch(`${import.meta.env.VITE_API_URL}/api/orders/all`, {
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${localStorage.getItem("mm_token")}` }
-      }).then(r => r.json())
+      api.getAllOrders()
     ])
       .then(([s, orders]) => {
         setStats(s);

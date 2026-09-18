@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useCart } from "../context/CartContext";
 import { useOrders } from "../context/OrderContext";
@@ -14,6 +14,17 @@ export default function Checkout() {
   const { user, logout } = useUserAuth();
   const { cart, totalPrice, kitchenId, clearCart } = useCart();
   const { addOrder, loading } = useOrders();
+
+  // Redirect if not logged in or cart is empty
+  useEffect(() => {
+    if (!user) {
+      navigate("/login", { state: { from: "/checkout" }, replace: true });
+      return;
+    }
+    if (!cart || cart.length === 0) {
+      navigate("/cart", { replace: true });
+    }
+  }, [user, cart, navigate]);
 
   // Address
   const [flat, setFlat]       = useState("");
@@ -62,22 +73,42 @@ export default function Checkout() {
 
   // ── Place Order ──
   const handleOrder = async () => {
+    if (processing) return;
     setError("");
-    if (!flat || !street || !city || !pincode) { setError("Please fill all address fields"); return; }
+    if (!user) {
+      navigate("/login", { state: { from: "/checkout" } });
+      return;
+    }
+    if (!cart || cart.length === 0) {
+      setError("Your cart is empty");
+      return;
+    }
+    if (!flat || !street || !city || !pincode) {
+      setError("Please fill all address fields");
+      return;
+    }
     setProcessing(true);
 
     try {
-      const orderUser = user || { name: "Guest Customer", mobile: "" };
       // Step 1: Place the order
       const res = await addOrder({
-        user:      { name: orderUser.name, mobile: orderUser.mobile },
+        user:      { name: user.name, mobile: user.mobile },
         kitchenId: kitchenId || cart[0]?.kitchenId || cart[0]?.kitchen_id,
         items:     cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, kitchenId: i.kitchenId })),
         total:     finalTotal,
         address:   fullAddress,
       });
 
-      if (!res.success) { setError(res.error || "Failed to place order"); setProcessing(false); return; }
+      if (!res.success) {
+        if (typeof res.error === "string" && (res.error.includes("Invalid or expired token") || res.error.includes("token"))) {
+          logout();
+          navigate("/login", { state: { from: "/checkout" } });
+          return;
+        }
+        setError(res.error || "Failed to place order");
+        setProcessing(false);
+        return;
+      }
 
       // Mark coupon as used
       if (couponApplied?.code) {
@@ -88,11 +119,16 @@ export default function Checkout() {
       if (paymentMethod === "online") {
         await handleOnlinePayment(res.order);
       } else {
-        // COD — go straight to success
+        // COD — verified success
         clearCart();
         navigate("/order-success", { state: { order: res.order, paymentMethod: "cod" } });
       }
     } catch (err) {
+      if (typeof err.message === "string" && (err.message.includes("Invalid or expired token") || err.message.includes("token"))) {
+        logout();
+        navigate("/login", { state: { from: "/checkout" } });
+        return;
+      }
       setError(err.message || "Something went wrong");
     } finally {
       setProcessing(false);
@@ -102,21 +138,11 @@ export default function Checkout() {
   // ── Online Payment (Razorpay) ──
   const handleOnlinePayment = async (order) => {
     try {
-      // Create Razorpay order
       const paymentOrder = await api.createPaymentOrder(finalTotal, order.id);
 
       if (paymentOrder.mock) {
-        // Test mode — simulate successful payment
-        await api.verifyPayment({
-          razorpay_order_id: paymentOrder.orderId,
-          razorpay_payment_id: `pay_mock_${Date.now()}`,
-          razorpay_signature: "mock_signature",
-          appOrderId: order.id,
-          paymentMethod: "online",
-          mock: true,
-        });
-        clearCart();
-        navigate("/order-success", { state: { order, paymentMethod: "online", paid: true } });
+        setError("Online payment gateway requires active Razorpay credentials (RAZORPAY_KEY_ID & RAZORPAY_KEY_SECRET). Please select Cash on Delivery to complete your order.");
+        setProcessing(false);
         return;
       }
 
@@ -126,30 +152,33 @@ export default function Checkout() {
         amount: paymentOrder.amount,
         currency: paymentOrder.currency,
         name: "Midnight Monk 🌙",
-        description: `Order #${order.id.slice(-6).toUpperCase()}`,
+        description: `Order #${(order.id || "").slice(-6).toUpperCase()}`,
         order_id: paymentOrder.orderId,
         handler: async (response) => {
-          // Verify payment
-          await api.verifyPayment({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-            appOrderId: order.id,
-            paymentMethod: "online",
-          });
-          clearCart();
-          navigate("/order-success", { state: { order, paymentMethod: "online", paid: true } });
+          try {
+            await api.verifyPayment({
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              appOrderId: order.id,
+              paymentMethod: "online",
+            });
+            clearCart();
+            navigate("/order-success", { state: { order, paymentMethod: "online", paid: true } });
+          } catch (vErr) {
+            setError(vErr.message || "Payment verification failed. Please contact support.");
+            setProcessing(false);
+          }
         },
         prefill: {
           name: user?.name || "",
           contact: user?.mobile || "",
         },
-        theme: { color: "#F5A623" },
+        theme: { color: "#C9783E" },
         modal: {
           ondismiss: () => {
-            // If user closes Razorpay, still deliver as COD
-            clearCart();
-            navigate("/order-success", { state: { order, paymentMethod: "cod" } });
+            setError("Online payment was cancelled. Your cart is preserved — you can try again or choose Cash on Delivery.");
+            setProcessing(false);
           }
         }
       };
@@ -158,22 +187,12 @@ export default function Checkout() {
         const rzp = new window.Razorpay(options);
         rzp.open();
       } else {
-        // Razorpay SDK not loaded — fallback to mock
-        await api.verifyPayment({
-          razorpay_order_id: paymentOrder.orderId,
-          razorpay_payment_id: `pay_fallback_${Date.now()}`,
-          razorpay_signature: "fallback",
-          appOrderId: order.id,
-          paymentMethod: "online",
-          mock: true,
-        });
-        clearCart();
-        navigate("/order-success", { state: { order, paymentMethod: "online", paid: true } });
+        setError("Razorpay checkout SDK is not loaded. Please select Cash on Delivery to proceed.");
+        setProcessing(false);
       }
     } catch (err) {
-      // Payment failed — still allow COD delivery
-      clearCart();
-      navigate("/order-success", { state: { order, paymentMethod: "cod" } });
+      setError(err.message || "Online payment unavailable. Please select Cash on Delivery.");
+      setProcessing(false);
     }
   };
 

@@ -31,6 +31,7 @@ export default function Profile() {
     setSaving(true);
     try {
       const res = await api.updateProfile(name.trim());
+      localStorage.setItem("mm_user_token", res.token);
       localStorage.setItem("mm_token", res.token);
       if (updateUser) updateUser(res.user);
       setSaveMsg("✅ Name updated successfully!");

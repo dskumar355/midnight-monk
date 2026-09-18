@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
-from database.db import users_collection, admins_collection, master_admins_collection
+from database.db import users_collection, admins_collection, master_admins_collection, delivery_partners_collection
 from models.user_model import create_user, format_user, validate_user
+from models.delivery_partner_model import format_delivery_partner
 from utils.helpers import generate_token, verify_token
 import hashlib
 from datetime import datetime
@@ -110,6 +111,7 @@ def user_register():
 # Matches AdminLogin.jsx
 # ─────────────────────────────────────────
 @auth_routes.route("/admin-login", methods=["POST"])
+@auth_routes.route("/kitchen-login", methods=["POST"])
 @limiter.limit("10 per minute")
 def admin_login():
     data = request.json or {}
@@ -185,6 +187,38 @@ def master_login():
             "username": master.get("username"),
             "role":     "master_admin"
         }
+    }), 200
+
+
+@auth_routes.route("/delivery-login", methods=["POST"])
+@limiter.limit("10 per minute")
+def delivery_login():
+    data = request.json or {}
+    username = data.get("username", "").strip()
+    password = data.get("password", "").strip()
+
+    if not username or not password:
+        return jsonify({"error": "Username and password are required"}), 400
+
+    partner = delivery_partners_collection.find_one({"username": username, "role": "delivery_partner"})
+    if not partner:
+        return jsonify({"error": "Delivery partner not found"}), 404
+
+    if partner.get("password") != hash_password(password):
+        return jsonify({"error": "Invalid password"}), 401
+
+    token = generate_token({
+        "id": str(partner["_id"]),
+        "username": partner.get("username"),
+        "name": partner.get("name"),
+        "phone": partner.get("phone"),
+        "role": "delivery_partner",
+    })
+
+    return jsonify({
+        "message": "Delivery partner login successful",
+        "token": token,
+        "partner": format_delivery_partner(partner),
     }), 200
 
 

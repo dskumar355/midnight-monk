@@ -7,13 +7,16 @@ export default function MasterAdminAdmins() {
   const navigate = useNavigate();
   const { master } = useMasterAuth();
   const [admins, setAdmins]   = useState([]);
+  const [partners, setPartners] = useState([]);
   const [form, setForm]       = useState({ username:"", password:"", kitchenId:"", kitchenName:"" });
+  const [partnerForm, setPartnerForm] = useState({ username:"", password:"", name:"", phone:"", vehicleNumber:"", role:"delivery_partner" });
   const [adding, setAdding]   = useState(false);
   const [error, setError]     = useState("");
 
   useEffect(() => {
     if (!master) { navigate("/master/login"); return; }
     api.getAllAdmins().then(setAdmins);
+    api.getDeliveryPartners().then(setPartners);
   }, [master]);
 
   const handleAdd = async () => {
@@ -33,6 +36,18 @@ export default function MasterAdminAdmins() {
     if (!confirm("Delete this admin?")) return;
     await api.deleteAdmin(id);
     setAdmins(prev => prev.filter(a => a.id !== id));
+  };
+
+  const handleAddPartner = async () => {
+    const res = await api.createDeliveryPartner(partnerForm);
+    setPartners((prev) => [res.partner, ...prev]);
+    setPartnerForm({ username:"", password:"", name:"", phone:"", vehicleNumber:"", role:"delivery_partner" });
+  };
+
+  const handleDeletePartner = async (id) => {
+    if (!confirm("Delete this delivery partner?")) return;
+    await api.deleteDeliveryPartner(id);
+    setPartners((prev) => prev.filter((p) => p.id !== id));
   };
 
   return (
@@ -58,10 +73,43 @@ export default function MasterAdminAdmins() {
           <button style={{...S.addBtn, opacity: adding ? 0.7 : 1}} onClick={handleAdd} disabled={adding}>
             {adding ? "Adding..." : "Add Admin"}
           </button>
+          <h3 style={{...S.section, marginTop:"16px"}}>🛵 Add Delivery Partner</h3>
+          {[["Username","username"],["Password","password"],["Name","name"],["Phone","phone"],["Vehicle","vehicleNumber"]].map(([label,key]) => (
+            <input key={key} style={S.input} placeholder={label} type={key==="password"?"password":"text"} value={partnerForm[key]} onChange={(e) => setPartnerForm({ ...partnerForm, [key]: e.target.value })} />
+          ))}
+          <div style={S.field}>
+            <label style={S.label}>Role</label>
+            <select
+              style={S.input}
+              value={partnerForm.role}
+              onChange={(e) => setPartnerForm({ ...partnerForm, role: e.target.value })}
+            >
+              <option value="delivery_partner">Delivery Partner</option>
+              <option value="delivery_manager">Delivery Manager</option>
+              <option value="delivery_supervisor">Delivery Supervisor</option>
+              <option value="delivery_admin">Delivery Admin</option>
+            </select>
+          </div>
+          <button style={S.addBtn} onClick={handleAddPartner}>Add Delivery Partner</button>
         </div>
 
         {/* Admins List */}
         <div style={S.list}>
+          <h3 style={S.section}>Delivery Partners</h3>
+          {partners.map((partner) => (
+            <div key={partner.id} style={S.card}>
+              <div style={S.cardRow}>
+                <div style={S.avatar}>🛵</div>
+                <div style={{flex:1}}>
+                  <p style={S.username}>{partner.name}</p>
+                  <p style={S.meta}>{partner.phone} · {partner.vehicleNumber || "No vehicle"}</p>
+                  <div style={S.roleBadge}>{partner.role || "delivery_partner"}</div>
+                </div>
+                <button style={S.deleteBtn} onClick={() => handleDeletePartner(partner.id)}>🗑️ Remove</button>
+              </div>
+            </div>
+          ))}
+          <h3 style={S.section}>Kitchen Admins</h3>
           {admins.map(admin => (
             <div key={admin.id} style={S.card}>
               <div style={S.cardRow}>

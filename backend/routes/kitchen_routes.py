@@ -22,6 +22,8 @@ def get_kitchens():
 # GET /api/kitchens/all-public
 # Used by Kitchens.jsx to show open/closed badges
 # ─────────────────────────────────────────
+@kitchen_routes.route("", methods=["GET"])
+@kitchen_routes.route("/", methods=["GET"])
 @kitchen_routes.route("/all-public", methods=["GET"])
 def get_all_kitchens_public():
     kitchens = list(kitchens_collection.find({}))
@@ -152,9 +154,22 @@ def delete_kitchen(kitchen_id):
     if err:
         return jsonify(err[0]), err[1]
 
-    result = kitchens_collection.delete_one({"kitchen_id": kitchen_id})
+    # Try matching kitchen_id first, then ObjectId
+    target_id = kitchen_id.strip()
+    result = kitchens_collection.delete_one({"kitchen_id": target_id})
+    if result.deleted_count == 0 and ObjectId.is_valid(target_id):
+        # If deleted by ObjectId, find the kitchen_id for menu cleanup
+        k_doc = kitchens_collection.find_one({"_id": ObjectId(target_id)})
+        if k_doc:
+            target_id = k_doc.get("kitchen_id", target_id)
+        result = kitchens_collection.delete_one({"_id": ObjectId(target_id)})
+
     if result.deleted_count == 0:
         return jsonify({"error": "Kitchen not found"}), 404
+
+    # Cascading cleanup: delete any menu items associated with this kitchen
+    from database.db import menu_collection
+    menu_collection.delete_many({"kitchen_id": target_id})
 
     return jsonify({"message": f"Kitchen '{kitchen_id}' deleted successfully"}), 200
 
@@ -168,8 +183,6 @@ def seed_kitchens():
     kitchens = [
         create_kitchen("Night Bites",    "k1", tag="*open now, fast prep", rating=4.8),
         create_kitchen("Midnight Meals", "k2", tag="*open now, fast prep", rating=4.0),
-        create_kitchen("Curry & Co.",     "k3", owner="Aarav Shah", location="Alkapuri", tag="*comforting Indian classics", rating=4.7),
-        create_kitchen("The Wok Room",    "k4", owner="Meera Patel", location="Gotri", tag="*late-night Asian bowls", rating=4.6),
     ]
     seeded = []
     for k in kitchens:
@@ -183,3 +196,4 @@ def seed_kitchens():
         "seeded":  seeded,
         "skipped": [k["kitchen_id"] for k in kitchens if k["kitchen_id"] not in seeded]
     }), 201
+

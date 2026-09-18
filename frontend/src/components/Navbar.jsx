@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FiUser, FiShoppingBag, FiMapPin, FiChevronDown } from "react-icons/fi";
+import { FiUser, FiShoppingBag, FiShoppingCart, FiPackage, FiMapPin, FiChevronDown } from "react-icons/fi";
 import { useTheme } from "../context/ThemeContext";
 import { useUserAuth } from "../context/UserAuthContext";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import { useOrders } from "../context/OrderContext";
+import { useCart } from "../context/CartContext";
 
 const defaultLocations = [
   "Vadodara, Gujarat",
@@ -33,6 +34,7 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
   const resolvedBackPath = backPath || defaultBackPaths[location.pathname];
   const resolvedBackLabel = backLabel || (resolvedBackPath === "/login" ? "Login" : "Back");
   const { orders } = useOrders();
+  const { totalItems } = useCart();
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
@@ -323,65 +325,115 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
 
           {/* RIGHT: Actions */}
           <div style={{ display: "flex", alignItems: "center", gap: "10px", flexShrink: 0 }}>
-            {rightContent || (admin ? (
-              <button
-                onClick={() => navigate("/login/admin")}
-                style={{
-                  background: "transparent",
-                  border: `1px solid ${t.border}`,
-                  borderRadius: "10px",
-                  color: t.text,
-                  padding: isScrolled ? "8px 10px" : "10px 12px",
-                  fontSize: "12px",
-                  fontWeight: "800",
-                  cursor: "pointer",
-                }}
-              >
-                SIGN IN
-              </button>
+            {rightContent ? (
+              rightContent
             ) : (
               <>
-            <button
-              onClick={() => navigate("/orders")}
-              style={{
-                background: "transparent",
-                border: `1px solid ${t.border}`,
-                borderRadius: "10px",
-                color: t.text,
-                padding: isScrolled ? "8px 10px" : "10px 12px",
-                fontSize: "12px",
-                fontWeight: "800",
-                display: "flex",
-                alignItems: "center",
-                gap: "6px",
-                cursor: "pointer",
-                transition: "all 0.25s ease",
-              }}
-              title="Orders"
-            >
-              <FiShoppingBag size={14} />
-              {!isScrolled && <span>ORDERS</span>}
-              {activeOrdersCount > 0 && (
-                <span
+                {/* Dedicated Cart Button */}
+                <button
+                  onClick={() => navigate("/cart")}
                   style={{
-                    minWidth: "16px",
-                    height: "16px",
-                    borderRadius: "999px",
-                    background: t.accent,
-                    color: t.accentText,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: "9px",
+                    background: location.pathname === "/cart" ? (t.accentSoft || "rgba(201,120,62,0.15)") : "transparent",
+                    border: `1px solid ${location.pathname === "/cart" ? (t.accent || "#C9783E") : t.border}`,
+                    borderRadius: "10px",
+                    color: location.pathname === "/cart" ? (t.accentText || t.accent || "#C9783E") : t.text,
+                    padding: isScrolled ? "8px 10px" : "10px 12px",
+                    fontSize: "12px",
                     fontWeight: "800",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    cursor: "pointer",
+                    transition: "all 0.25s ease",
                   }}
+                  title="My Cart"
                 >
-                  {activeOrdersCount}
-                </span>
-              )}
-            </button>
+                  <FiShoppingCart size={14} />
+                  {!isScrolled && <span>CART</span>}
+                  {totalItems > 0 && (
+                    <span
+                      style={{
+                        minWidth: "16px",
+                        height: "16px",
+                        borderRadius: "999px",
+                        background: t.accent || "#C9783E",
+                        color: t.accentText || "#fff",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "9px",
+                        fontWeight: "800",
+                        padding: "0 4px",
+                      }}
+                    >
+                      {totalItems}
+                    </span>
+                  )}
+                </button>
 
-            <div ref={profileRef} style={{ position: "relative" }}>
+                {!user ? (
+                  <button
+                    onClick={() => navigate("/login", { state: { from: location.pathname } })}
+                    style={{
+                      background: t.accentSoft || "rgba(201,120,62,0.15)",
+                      border: `1.5px solid ${t.accent || "#C9783E"}`,
+                      borderRadius: "10px",
+                      color: t.accentText || t.accent || "#C9783E",
+                      padding: isScrolled ? "8px 14px" : "10px 16px",
+                      fontSize: "12px",
+                      fontWeight: "800",
+                      letterSpacing: "0.5px",
+                      cursor: "pointer",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    SIGN IN
+                  </button>
+                ) : (
+                  <>
+                    {/* Dedicated Active Orders Button */}
+                    <button
+                      onClick={() => navigate("/orders")}
+                      style={{
+                        background: location.pathname === "/orders" ? (t.accentSoft || "rgba(201,120,62,0.15)") : "transparent",
+                        border: `1px solid ${location.pathname === "/orders" ? (t.accent || "#C9783E") : t.border}`,
+                        borderRadius: "10px",
+                        color: location.pathname === "/orders" ? (t.accentText || t.accent || "#C9783E") : t.text,
+                        padding: isScrolled ? "8px 10px" : "10px 12px",
+                        fontSize: "12px",
+                        fontWeight: "800",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        cursor: "pointer",
+                        transition: "all 0.25s ease",
+                      }}
+                      title="Active Orders"
+                    >
+                      <FiPackage size={14} />
+                      {!isScrolled && <span>ORDERS</span>}
+                      {activeOrdersCount > 0 && (
+                        <span
+                          style={{
+                            minWidth: "16px",
+                            height: "16px",
+                            borderRadius: "999px",
+                            background: t.accent || "#C9783E",
+                            color: t.accentText || "#fff",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "9px",
+                            fontWeight: "800",
+                            padding: "0 4px",
+                          }}
+                        >
+                          {activeOrdersCount}
+                        </span>
+                      )}
+                    </button>
+
+                    <div ref={profileRef} style={{ position: "relative" }}>
               <button
                 onClick={() => setProfileOpen(!profileOpen)}
                 style={{
@@ -454,8 +506,10 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
               )}
             </div>
 
+                  </>
+                )}
               </>
-            ))}
+            )}
           </div>
         </div>
       </header>

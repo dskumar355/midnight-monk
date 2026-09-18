@@ -108,6 +108,7 @@ PORT=8000
 **Seed the database (first time only):**
 ```bash
 python3 seed.py
+python3 seed_delivery_partner.py
 ```
 
 **Start the backend server:**
@@ -168,6 +169,15 @@ Go to: `http://localhost:5173/login/admin`
 | master   | master123|
 
 Go to: `http://localhost:5173/login/master`
+
+### Delivery Partner Login
+| Username | Password | Partner |
+|----------|----------|---------|
+| rider1   | rider123 | Aarav Rider |
+
+Run `python3 seed_delivery_partner.py` from `backend/` once to create this local demo account.
+
+Go to: `http://localhost:5173/delivery/login`
 
 ---
 
@@ -243,6 +253,43 @@ midnight-monk/
 │
 └── README.md
 ```
+
+---
+
+## 🗺️ Live Order Tracking Setup (Leaflet + OpenStreetMap)
+
+Midnight Monk features real-time order tracking powered by **Leaflet** and **OpenStreetMap (OSM)**!
+
+### Zero-Configuration Setup
+Leaflet and OpenStreetMap work directly out-of-the-box with **zero API keys** and **no billing setup required**.
+
+1. **Frontend `.env`:**
+   ```env
+   VITE_API_URL=http://localhost:8000
+   ```
+
+2. **For Vercel Deployment:**
+   - Vercel Settings → Environment Variables
+   - Add `VITE_API_URL` (pointing to your Render backend)
+
+**For detailed setup instructions, see:** [MAP_TRACKING_SETUP.md](./MAP_TRACKING_SETUP.md)
+
+### Features
+- 🗺️ **Live map display** with standard OpenStreetMap HTTPS tiles
+- 🛵 **Animated rider marker** moving smoothly along the route
+- 📍 **Kitchen & customer markers** with custom branded SVG badges
+- ⏱️ **Real-time ETA** and Haversine distance updates
+- 📱 **Mobile optimized** (responsive map, touch-friendly)
+- 🔄 **Automatic route line** and auto-bounds viewport fitting
+- ⚡ **Fallback simulation map** if network or coordinates are unavailable
+
+### Test Live Tracking
+1. Place an order as a customer
+2. Confirm order in kitchen admin dashboard
+3. Mark order as "Picked Up"
+4. Change status to "Out for Delivery"
+5. Click "View Tracking" from your orders
+6. Watch the rider marker animate along the route!
 
 ---
 

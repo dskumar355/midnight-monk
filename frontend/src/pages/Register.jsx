@@ -1,8 +1,11 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
+import { useUserAuth } from "../context/UserAuthContext";
 
 export default function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { register, loading } = useUserAuth();
 
   const [form, setForm] = useState({
     name: "",
@@ -11,7 +14,8 @@ export default function Register() {
   });
   const [error, setError] = useState("");
 
-  const handleRegister = () => {
+  const handleRegister = async () => {
+    setError("");
     if (!form.name.trim()) {
       setError("Please enter your full name");
       return;
@@ -24,8 +28,14 @@ export default function Register() {
       setError("Mobile numbers do not match");
       return;
     }
-    // Navigate to login after registration
-    navigate("/login");
+    const res = await register(form.name.trim(), form.mobile.trim(), form.confirmMobile.trim());
+    if (res.success) {
+      const redirectParam = new URLSearchParams(location.search).get("redirect");
+      const target = location.state?.from || redirectParam || "/kitchens";
+      navigate(target);
+    } else {
+      setError(res.error || "Registration failed");
+    }
   };
 
   return (
@@ -110,14 +120,18 @@ export default function Register() {
           )}
 
           {/* Register Button */}
-          <button style={styles.registerBtn} onClick={handleRegister}>
-            CREATE ACCOUNT
+          <button
+            style={{ ...styles.registerBtn, opacity: loading ? 0.7 : 1, cursor: loading ? "wait" : "pointer" }}
+            onClick={handleRegister}
+            disabled={loading}
+          >
+            {loading ? "CREATING ACCOUNT..." : "CREATE ACCOUNT"}
           </button>
 
           {/* Login Link */}
           <div style={styles.loginRow}>
             <span style={styles.loginText}>Already have an account?</span>
-            <button style={styles.loginLink} onClick={() => navigate("/login")}>
+            <button style={styles.loginLink} onClick={() => navigate("/login", { state: location.state })}>
               Sign In
             </button>
           </div>

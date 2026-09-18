@@ -122,3 +122,33 @@ a {
   margin-bottom: 12px;
   border-radius: 8px;
 }
+
+/* Leaflet Custom Marker & Pulse */
+@keyframes leaflet-marker-pulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+}
+
+.custom-leaflet-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-popup-content-wrapper {
+  background: #ffffff !important;
+  border-radius: 12px !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.2) !important;
+}
+.leaflet-popup-tip {
+  background: #ffffff !important;
+}

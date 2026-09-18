@@ -27,6 +27,9 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
-```
 
----
+# Logs and local databases
+*.log
+*.log.*
+backend/*.log*
+backend/data/

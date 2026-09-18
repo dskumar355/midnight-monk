@@ -3,7 +3,7 @@ import { useMasterAuth } from "../context/MasterAuthContext";
 import { useOrders } from "../context/OrderContext";
 import { useNavigate } from "react-router-dom";
 
-const STATUS_COLORS = { Placed:"#3498db", Preparing:"#e67e22", "Out for Delivery":"#9b59b6", Delivered:"#27ae60" };
+const STATUS_COLORS = { ORDER_PLACED:"#3498db", ACCEPTED:"#0ea5e9", PREPARING:"#e67e22", READY:"#8b5cf6", ASSIGNED:"#7c3aed", PICKED_UP:"#f97316", OUT_FOR_DELIVERY:"#22c55e", DELIVERED:"#16a34a" };
 
 export default function MasterOrders() {
   const navigate = useNavigate();
@@ -26,8 +26,8 @@ export default function MasterOrders() {
   const stats = {
     total:    orders.length,
     revenue:  orders.reduce((s, o) => s + (o.total || 0), 0),
-    pending:  orders.filter(o => o.status !== "Delivered").length,
-    delivered:orders.filter(o => o.status === "Delivered").length,
+    pending:  orders.filter(o => o.status !== "DELIVERED").length,
+    delivered:orders.filter(o => o.status === "DELIVERED").length,
   };
 
   if (loading) return <div style={S.centered}>Loading orders...</div>;
@@ -55,7 +55,7 @@ export default function MasterOrders() {
         <input style={S.search} placeholder="🔍 Search by name or order ID..." value={search}
           onChange={e => setSearch(e.target.value)} />
         <div style={S.filters}>
-          {["All","Placed","Preparing","Out for Delivery","Delivered"].map(s => (
+          {["All","ORDER_PLACED","ACCEPTED","PREPARING","READY","ASSIGNED","PICKED_UP","OUT_FOR_DELIVERY","DELIVERED"].map(s => (
             <button key={s} style={{...S.filterBtn, ...(filter===s ? S.filterActive : {})}}
               onClick={() => setFilter(s)}>{s}</button>
           ))}
@@ -76,6 +76,7 @@ export default function MasterOrders() {
                 <div style={S.badge(order.status)}>{order.status}</div>
                 <p style={S.total}>₹{order.total}</p>
                 <p style={S.kitchen}>🍽️ {order.kitchenId}</p>
+                {order.deliveryAssignment?.partner_name && <p style={S.kitchen}>🛵 {order.deliveryAssignment.partner_name} · {order.deliveryAssignment.partner_phone}</p>}
               </div>
             </div>
             <div style={S.items}>
@@ -83,6 +84,7 @@ export default function MasterOrders() {
                 <span key={i} style={S.item}>{item.name} ×{item.quantity}</span>
               ))}
             </div>
+            {order.paymentMethod === "COD" && <p style={S.address}>Cash to collect: ₹{order.cod?.amount_expected || order.total} · {order.cod?.collection_status || "PENDING"}</p>}
           </div>
         ))}
         {filtered.length === 0 && <div style={S.empty}>No orders found</div>}

@@ -11,6 +11,13 @@ export default function Cart() {
   const { user, logout } = useUserAuth();
   const { cart, updateQuantity, removeFromCart, totalItems, totalPrice } = useCart();
   const handleLogout = () => { logout(); navigate("/login"); };
+  const handleProceed = () => {
+    if (!user) {
+      navigate("/login", { state: { from: "/checkout" } });
+      return;
+    }
+    navigate("/checkout");
+  };
 
   if (cart.length === 0) return (
     <div style={{ minHeight:"100vh", backgroundColor:t.bg, fontFamily:"'Segoe UI',sans-serif" }}>
@@ -66,8 +73,8 @@ export default function Cart() {
           </div>
         </div>
 
-        <button onClick={() => navigate("/checkout")} style={{ width:"100%", backgroundColor:t.accent, color:"#fff", border:"none", borderRadius:"10px", padding:"16px", fontSize:"15px", fontWeight:"700", cursor:"pointer", boxShadow:"0 4px 14px rgba(245,166,35,0.4)", fontFamily:"'Segoe UI',sans-serif" }}>
-          Proceed to Checkout →
+        <button onClick={handleProceed} style={{ width:"100%", backgroundColor:t.accent, color:"#fff", border:"none", borderRadius:"10px", padding:"16px", fontSize:"15px", fontWeight:"700", cursor:"pointer", boxShadow:"0 4px 14px rgba(245,166,35,0.4)", fontFamily:"'Segoe UI',sans-serif" }}>
+          {user ? "Proceed to Checkout →" : "Sign in to continue →"}
         </button>
       </div>
 

@@ -12,7 +12,7 @@ class Config:
     DATABASE_NAME = os.getenv("DATABASE_NAME", "midnight_monk")
 
     # ✅ JWT Secret
-    SECRET_KEY = os.getenv("SECRET_KEY", "midnightmonksecret_changeme_in_production")
+    SECRET_KEY = os.getenv("SECRET_KEY") or os.getenv("JWT_SECRET") or "midnightmonksecret_changeme_in_production"
 
     # ✅ JWT expiry (in seconds) — 7 days
     JWT_EXPIRY = 60 * 60 * 24 * 7

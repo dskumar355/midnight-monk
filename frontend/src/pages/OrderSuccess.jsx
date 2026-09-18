@@ -8,6 +8,8 @@ export default function OrderSuccess() {
   const location = useLocation();
   const [show, setShow] = useState(false);
   const { user } = useUserAuth();
+  const order = location.state?.order;
+  const orderId = order?.id;
   const paymentMethod = location.state?.paymentMethod || "cod";
   const paid = location.state?.paid || false;
 
@@ -78,9 +80,9 @@ export default function OrderSuccess() {
           <div style={styles.actions}>
             <button
               style={styles.primaryBtn}
-              onClick={() => user ? navigate("/orders") : navigate("/kitchens")}
+              onClick={() => orderId ? navigate(`/track-order/${orderId}`) : user ? navigate("/orders") : navigate("/kitchens")}
             >
-              {user ? "📦 TRACK MY ORDER" : "🍽️ ORDER MORE FOOD"}
+              {orderId ? "🗺️ TRACK ON LIVE MAP" : user ? "📦 VIEW MY ORDERS" : "🍽️ ORDER MORE FOOD"}
             </button>
             <button
               style={styles.secondaryBtn}

@@ -70,7 +70,7 @@ export function subscribeToKitchen(kitchenId, callback) {
   const s = getSocket();
   s.emit("join_kitchen", { kitchenId });
   s.on("kitchen_order_update", callback);
-  return () => s.off("kitchen_order_update");
+  return () => s.off("kitchen_order_update", callback);
 }
 
 export function disconnectSocket() {

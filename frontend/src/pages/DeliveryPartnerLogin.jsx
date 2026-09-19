@@ -23,9 +23,13 @@ export default function DeliveryPartnerLogin() {
         <div style={S.icon}>🛵</div>
         <h2 style={S.title}>Delivery Partner</h2>
         <p style={S.sub}>Sign in to manage pickups, routes, and deliveries</p>
-        <div style={S.demo}>
-          <span>Demo account</span>
-          <strong>rider1 / rider123</strong>
+        <div
+          onClick={() => { setUsername("rider1"); setPassword("rider123"); }}
+          style={{ ...S.demo, cursor: "pointer" }}
+          title="Click to auto-fill demo credentials"
+        >
+          <span>Demo account (click to fill)</span>
+          <strong>rider1 / rider123 ⚡</strong>
         </div>
         <input style={S.input} placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} />
         <input style={S.input} type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleLogin()} />

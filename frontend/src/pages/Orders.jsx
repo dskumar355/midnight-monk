@@ -91,7 +91,7 @@ export default function Orders() {
     // Request push notification permission
     requestNotificationPermission();
 
-    const interval = setInterval(() => fetchUserOrders(user.mobile), 15000);
+    const interval = setInterval(() => fetchUserOrders(user.mobile, { silent: true }), 15000);
     return () => clearInterval(interval);
   }, [user]);
 
@@ -106,7 +106,7 @@ export default function Orders() {
       const unsub = subscribeToOrder(order.id, (data) => {
         setLiveToast(`🔔 Order #${order.id.slice(-6).toUpperCase()}: ${data.status}`);
         setTimeout(() => setLiveToast(""), 4000);
-        fetchUserOrders(user.mobile); // refresh order list
+        fetchUserOrders(user.mobile, { silent: true }); // silent refresh order list
         notifyOrderStatus(order.id, data.status); // Browser push notification
       });
       socketUnsubs.current.push(unsub);
@@ -134,7 +134,7 @@ export default function Orders() {
   const filtered = filter === "All" ? orders : orders.filter(o => o.status === filter);
   const handleLogout = () => { logout(); navigate("/login"); };
 
-  if (loading) return (
+  if (loading && orders.length === 0) return (
     <div style={{ minHeight: "100vh", backgroundColor: t.bg, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "16px", fontFamily: "'Segoe UI',sans-serif" }}>
       <div style={{ fontSize: "48px", animation: "spin 1.2s linear infinite" }}>🌙</div>
       <p style={{ color: t.subText, fontSize: "14px", fontWeight: "600" }}>Fetching your orders...</p>

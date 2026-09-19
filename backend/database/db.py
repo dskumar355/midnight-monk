@@ -17,18 +17,41 @@ master_admins_collection = db["master_admins"]
 audit_logs_collection   = db["audit_logs"]
 coupons_collection      = db["coupons"]
 
-# Helpful indexes for delivery operations
+# Helpful indexes for delivery operations & high-throughput querying
 try:
+    # Delivery Partners
     delivery_partners_collection.create_index([("username", 1)], unique=False)
     delivery_partners_collection.create_index([("role", 1)])
     delivery_partners_collection.create_index([("account_status", 1)])
     delivery_partners_collection.create_index([("is_online", 1)])
     delivery_partners_collection.create_index([("active_order_id", 1)])
-    orders_collection.create_index([("delivery_assignment.partner_id", 1)])
-    orders_collection.create_index([("status", 1)])
+    delivery_partners_collection.create_index([("is_online", 1), ("active_order_id", 1)])
+
+    # Orders - Compound indexes for sorting & filtering
+    orders_collection.create_index([("kitchen_id", 1), ("createdAt", -1)])
+    orders_collection.create_index([("user.mobile", 1), ("createdAt", -1)])
+    orders_collection.create_index([("delivery_assignment.partner_id", 1), ("status", 1)])
+    orders_collection.create_index([("status", 1), ("createdAt", -1)])
     orders_collection.create_index([("createdAt", -1)])
+    orders_collection.create_index([("id", 1)])
+
+    # Kitchens
+    kitchens_collection.create_index([("kitchen_id", 1)])
+    kitchens_collection.create_index([("is_open", 1)])
+
+    # Menu
+    menu_collection.create_index([("kitchen_id", 1), ("category", 1)])
+    menu_collection.create_index([("kitchen_id", 1), ("is_available", 1)])
+
+    # Users & Admins
+    users_collection.create_index([("mobile", 1)])
+    admins_collection.create_index([("username", 1)])
+
+    # Audit & Coupons
     audit_logs_collection.create_index([("target_id", 1)])
-except Exception:
+    audit_logs_collection.create_index([("createdAt", -1)])
+    coupons_collection.create_index([("code", 1)])
+except Exception as e:
     pass
 
 def ping_db():

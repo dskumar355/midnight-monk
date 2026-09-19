@@ -90,7 +90,7 @@ export default function TrackOrder() {
       }
     };
     updateSecs();
-    const interval = setInterval(updateSecs, 1000);
+    const interval = setInterval(updateSecs, 5000);
     return () => clearInterval(interval);
   }, [tracking?.last_gps_update]);
 

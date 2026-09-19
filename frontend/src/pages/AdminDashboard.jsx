@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { api } from "../services/api";
+import { subscribeToKitchen } from "../services/socket";
 import Navbar from "../components/Navbar";
 import SupportWidget from "../components/SupportWidget";
 
@@ -25,8 +26,17 @@ export default function AdminDashboard() {
     loadData();
     api.getMenu(admin.kitchenId).then(setMenuItems).catch(() => { }).finally(() => setMenuLoading(false));
 
-    const interval = setInterval(loadData, 10000);
-    return () => clearInterval(interval);
+    // Real-time updates via Socket.IO
+    const unsub = subscribeToKitchen(admin.kitchenId, () => {
+      loadData();
+    });
+
+    // Fallback polling relaxed to 20 seconds
+    const interval = setInterval(loadData, 20000);
+    return () => {
+      if (unsub) unsub();
+      clearInterval(interval);
+    };
   }, [admin]);
 
   const handleToggle = async () => {

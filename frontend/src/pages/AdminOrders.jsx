@@ -20,15 +20,18 @@ export default function AdminOrders() {
 
   useEffect(() => {
     if (!admin) { navigate("/kitchen-admin/login"); return; }
+    // Initial fetch
     fetchKitchenOrders(admin.kitchenId);
 
+    // Socket.IO real-time listener (silent sync)
     const unsub = subscribeToKitchen(admin.kitchenId, () => {
-      fetchKitchenOrders(admin.kitchenId);
+      fetchKitchenOrders(admin.kitchenId, { silent: true });
     });
 
+    // Fallback silent polling every 12 seconds
     const interval = setInterval(() => {
-      fetchKitchenOrders(admin.kitchenId);
-    }, 10000);
+      fetchKitchenOrders(admin.kitchenId, { silent: true });
+    }, 12000);
 
     return () => {
       if (unsub) unsub();
@@ -47,8 +50,14 @@ export default function AdminOrders() {
   const handleLogout = () => { logout(); navigate("/kitchen-admin/login"); };
   const filtered = filter === "All" ? orders : orders.filter(o => o.status === filter);
 
-  if (loading) return (
-    <div style={{ minHeight: "100vh", backgroundColor: t.bg, display: "flex", alignItems: "center", justifyContent: "center", color: t.text, fontFamily: "'Segoe UI',sans-serif" }}>Loading orders...</div>
+  // Only block the UI on the very first mount if there are no cached orders
+  if (loading && orders.length === 0) return (
+    <div style={{ minHeight: "100vh", backgroundColor: t.bg, display: "flex", alignItems: "center", justifyContent: "center", color: t.text, fontFamily: "'Segoe UI',sans-serif" }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: "24px", marginBottom: "8px" }}>⏳</div>
+        <div>Loading orders...</div>
+      </div>
+    </div>
   );
 
   return (

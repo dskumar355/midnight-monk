@@ -36,54 +36,74 @@ export function OrderProvider({ children }) {
   };
 
   // ✅ Fetch user orders from backend
-  const fetchUserOrders = async (mobile) => {
-    setLoading(true); setError("");
+  const fetchUserOrders = async (mobile, { silent = false } = {}) => {
+    if (!silent) { setLoading(true); setError(""); }
     try {
       const data = await api.getUserOrders(mobile);
       setOrders(data);
       return data;
     } catch (err) {
-      setError(err.message);
+      if (!silent) setError(err.message);
       return [];
-    } finally { setLoading(false); }
+    } finally {
+      if (!silent) setLoading(false);
+    }
   };
 
-  // ✅ Fetch kitchen orders
-  const fetchKitchenOrders = async (kitchenId) => {
-    setLoading(true); setError("");
+  // ✅ Fetch kitchen orders (supports silent background sync)
+  const fetchKitchenOrders = async (kitchenId, { silent = false } = {}) => {
+    if (!silent) { setLoading(true); setError(""); }
     try {
       const data = await api.getKitchenOrders(kitchenId);
       setOrders(data);
       return data;
     } catch (err) {
-      setError(err.message);
+      if (!silent) setError(err.message);
       return [];
-    } finally { setLoading(false); }
+    } finally {
+      if (!silent) setLoading(false);
+    }
   };
 
   // ✅ Fetch all orders (master admin)
-  const fetchAllOrders = async () => {
-    setLoading(true); setError("");
+  const fetchAllOrders = async ({ silent = false } = {}) => {
+    if (!silent) { setLoading(true); setError(""); }
     try {
       const data = await api.getAllOrders();
       setOrders(data);
       return data;
     } catch (err) {
-      setError(err.message);
+      if (!silent) setError(err.message);
       return [];
-    } finally { setLoading(false); }
+    } finally {
+      if (!silent) setLoading(false);
+    }
   };
 
-  const fetchDeliveryOrders = async () => {
-    setLoading(true); setError("");
+  const fetchDeliveryOrders = async ({ silent = false } = {}) => {
+    if (!silent) { setLoading(true); setError(""); }
     try {
       const data = await api.getDeliveryOrders();
       setOrders(data);
       return data;
     } catch (err) {
-      setError(err.message);
+      if (!silent) setError(err.message);
       return [];
-    } finally { setLoading(false); }
+    } finally {
+      if (!silent) setLoading(false);
+    }
+  };
+
+  // ✅ Upsert order dynamically without full refetch
+  const upsertOrder = (updatedOrder) => {
+    if (!updatedOrder?.id) return;
+    setOrders((prev) => {
+      const exists = prev.some((o) => o.id === updatedOrder.id);
+      if (exists) {
+        return prev.map((o) => (o.id === updatedOrder.id ? { ...o, ...updatedOrder } : o));
+      }
+      return [updatedOrder, ...prev];
+    });
   };
 
   // ✅ Update order status
@@ -119,6 +139,7 @@ export function OrderProvider({ children }) {
       fetchDeliveryOrders,
       updateOrderStatus,
       updateDeliveryStatus,
+      upsertOrder,
     }}>
       {children}
     </OrderContext.Provider>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { useDeliveryAuth } from "../context/DeliveryAuthContext";
@@ -36,18 +36,19 @@ export default function DeliveryPartnerDashboard() {
   const [gpsStatus, setGpsStatus] = useState("IDLE"); // IDLE, SEARCHING, ACTIVE, PERMISSION_DENIED, UNAVAILABLE
   const [lastGpsCoords, setLastGpsCoords] = useState(null);
   const [gpsPingMsg, setGpsPingMsg] = useState("");
-  const lastSentTimeRef = useState(0);
-  const lastSentCoordsRef = useState(null);
-  const watchIdRef = useState(null);
+  const lastSentTimeRef = useRef(0);
+  const lastSentCoordsRef = useRef(null);
+  const lastUiTimeRef = useRef(0);
+  const watchIdRef = useRef(null);
 
   const activeDelivery = orders.find(
     (o) => o.status === "OUT_FOR_DELIVERY" || o.status === "PICKED_UP"
   );
 
-  const load = async () => {
+  const load = async (silent = false) => {
     const [dashboardData] = await Promise.all([
       api.getDeliveryDashboard(),
-      fetchDeliveryOrders(),
+      fetchDeliveryOrders({ silent }),
     ]);
     setDashboard(dashboardData);
     if (dashboardData?.partner) updatePartner({ ...partner, ...dashboardData.partner });
@@ -55,8 +56,8 @@ export default function DeliveryPartnerDashboard() {
 
   useEffect(() => {
     if (!partner) return navigate("/delivery/login");
-    load();
-    const timer = setInterval(load, 12000);
+    load(false);
+    const timer = setInterval(() => load(true), 15000);
     return () => clearInterval(timer);
   }, [partner]);
 
@@ -65,9 +66,9 @@ export default function DeliveryPartnerDashboard() {
     const isOnline = dashboard?.partner?.isOnline;
 
     if (!isOnline || !activeDelivery) {
-      if (watchIdRef[0] !== null) {
-        navigator.geolocation?.clearWatch(watchIdRef[0]);
-        watchIdRef[0] = null;
+      if (watchIdRef.current !== null) {
+        navigator.geolocation?.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
       setGpsStatus(!isOnline ? "OFFLINE" : "IDLE");
       return;
@@ -83,26 +84,32 @@ export default function DeliveryPartnerDashboard() {
     const onLocationSuccess = (pos) => {
       const { latitude, longitude, accuracy, speed, heading } = pos.coords;
       const now = Date.now();
-      setLastGpsCoords({
-        lat: latitude,
-        lng: longitude,
-        accuracy: Math.round(accuracy),
-        speed: speed != null ? Math.round(speed * 3.6) : null, // km/h
-        heading,
-        timestamp: new Date(),
-      });
+
+      // Throttle UI updates: only re-render if 3s elapsed or moved >= 5m
+      const prevCoords = lastSentCoordsRef.current;
+      const distFromPrev = prevCoords ? getDistanceMeters(prevCoords.lat, prevCoords.lng, latitude, longitude) : 999;
+      if (now - lastUiTimeRef.current >= 3000 || distFromPrev >= 5) {
+        lastUiTimeRef.current = now;
+        setLastGpsCoords({
+          lat: latitude,
+          lng: longitude,
+          accuracy: Math.round(accuracy),
+          speed: speed != null ? Math.round(speed * 3.6) : null, // km/h
+          heading,
+          timestamp: new Date(),
+        });
+      }
       setGpsStatus("ACTIVE");
 
       // Throttling: minimum 5s interval AND (moved >= 10m OR elapsed >= 20s heartbeat)
-      const timeElapsed = now - (lastSentTimeRef[0] || 0);
-      const prevCoords = lastSentCoordsRef[0];
+      const timeElapsed = now - lastSentTimeRef.current;
       const distanceMoved = prevCoords
         ? getDistanceMeters(prevCoords.lat, prevCoords.lng, latitude, longitude)
         : 999;
 
       if (!prevCoords || (timeElapsed >= 5000 && (distanceMoved >= 10 || timeElapsed >= 20000))) {
-        lastSentTimeRef[0] = now;
-        lastSentCoordsRef[0] = { lat: latitude, lng: longitude };
+        lastSentTimeRef.current = now;
+        lastSentCoordsRef.current = { lat: latitude, lng: longitude };
 
         api.updateDeliveryLocation({
           orderId: activeDelivery.id,
@@ -130,12 +137,12 @@ export default function DeliveryPartnerDashboard() {
       onLocationError,
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
     );
-    watchIdRef[0] = watchId;
+    watchIdRef.current = watchId;
 
     return () => {
-      if (watchId != null) {
-        navigator.geolocation.clearWatch(watchId);
-        watchIdRef[0] = null;
+      if (watchIdRef.current != null) {
+        navigator.geolocation.clearWatch(watchIdRef.current);
+        watchIdRef.current = null;
       }
     };
   }, [dashboard?.partner?.isOnline, activeDelivery?.id, activeDelivery?.status]);

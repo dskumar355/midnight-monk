@@ -1,6 +1,9 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, memo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+
+// In-memory cache for road network routes
+const routeCache = new Map();
 
 // ── Haversine Distance Calculation (km) ──
 function calculateHaversineDistance(lat1, lon1, lat2, lon2) {
@@ -62,7 +65,7 @@ function createCustomDivIcon(emoji, bg, border = "#FFFFFF", pulse = false) {
   });
 }
 
-export default function LeafletTrackingMap({
+function LeafletTrackingMap({
   trackingData,
   orderStatus = "ORDER_PLACED",
   etaMinutes,
@@ -323,46 +326,46 @@ export default function LeafletTrackingMap({
       if (lastRouteKeyRef.current !== routeKey) {
         lastRouteKeyRef.current = routeKey;
 
-        // Fetch driving road route from OSRM (cached per trip endpoints), with immediate fallback to straight polyline
-        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
+        const applyRoute = (latLngs) => {
+          if (polylineRef.current) {
+            polylineRef.current.setLatLngs(latLngs);
+          } else {
+            polylineRef.current = L.polyline(latLngs, {
+              color: "#C9783E",
+              weight: 5,
+              opacity: 0.85,
+              lineJoin: "round",
+            }).addTo(map);
+          }
+        };
 
-        fetch(osrmUrl)
-          .then((res) => res.json())
-          .then((data) => {
-            if (data?.routes?.[0]?.geometry?.coordinates) {
-              // Convert GeoJSON [lng, lat] to Leaflet [lat, lng]
-              const latLngs = data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]);
-              if (polylineRef.current) {
-                polylineRef.current.setLatLngs(latLngs);
+        if (routeCache.has(routeKey)) {
+          applyRoute(routeCache.get(routeKey));
+        } else {
+          // Fetch driving road route from OSRM (cached per trip endpoints), with immediate fallback to straight polyline
+          const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin.lng},${origin.lat};${destination.lng},${destination.lat}?overview=full&geometries=geojson`;
+
+          fetch(osrmUrl)
+            .then((res) => res.json())
+            .then((data) => {
+              if (data?.routes?.[0]?.geometry?.coordinates) {
+                // Convert GeoJSON [lng, lat] to Leaflet [lat, lng]
+                const latLngs = data.routes[0].geometry.coordinates.map((c) => [c[1], c[0]]);
+                routeCache.set(routeKey, latLngs);
+                applyRoute(latLngs);
               } else {
-                polylineRef.current = L.polyline(latLngs, {
-                  color: "#C9783E",
-                  weight: 5,
-                  opacity: 0.85,
-                  lineJoin: "round",
-                }).addTo(map);
+                throw new Error("No OSRM geometry");
               }
-            } else {
-              throw new Error("No OSRM geometry");
-            }
-          })
-          .catch(() => {
-            // Graceful fallback to direct polyline between points
-            const fallbackPoints = [
-              [origin.lat, origin.lng],
-              [destination.lat, destination.lng],
-            ];
-            if (polylineRef.current) {
-              polylineRef.current.setLatLngs(fallbackPoints);
-            } else {
-              polylineRef.current = L.polyline(fallbackPoints, {
-                color: "#C9783E",
-                weight: 4,
-                opacity: 0.8,
-                dashArray: "6, 8",
-              }).addTo(map);
-            }
-          });
+            })
+            .catch(() => {
+              // Graceful fallback to direct polyline between points
+              const fallbackPoints = [
+                [origin.lat, origin.lng],
+                [destination.lat, destination.lng],
+              ];
+              applyRoute(fallbackPoints);
+            });
+        }
       }
     }
 
@@ -925,3 +928,5 @@ function FallbackSimulationMap({
     </div>
   );
 }
+
+export default memo(LeafletTrackingMap);

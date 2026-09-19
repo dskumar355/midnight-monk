@@ -4,19 +4,21 @@
 importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.9.0/firebase-messaging-compat.js');
 
-// Config will be initialized with fallback if environment values are default
+// Dynamically receive Firebase credentials from registration query parameters
+const searchParams = new URLSearchParams(self.location.search || '');
 const firebaseConfig = {
-  apiKey: "mock-api-key",
-  authDomain: "midnight-monk.firebaseapp.com",
-  projectId: "midnight-monk",
-  storageBucket: "midnight-monk.appspot.com",
-  messagingSenderId: "100000000000",
-  appId: "1:100000000000:web:mockappid"
+  apiKey: searchParams.get('apiKey') || "mock-api-key",
+  authDomain: searchParams.get('authDomain') || "midnight-monk.firebaseapp.com",
+  projectId: searchParams.get('projectId') || "midnight-monk",
+  storageBucket: searchParams.get('storageBucket') || "midnight-monk.appspot.com",
+  messagingSenderId: searchParams.get('messagingSenderId') || "100000000000",
+  appId: searchParams.get('appId') || "1:100000000000:web:mockappid"
 };
 
 try {
-  firebase.initializeApp(firebaseConfig);
-  const messaging = firebase.messaging();
+  if (firebaseConfig.apiKey && firebaseConfig.apiKey !== "mock-api-key") {
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
 
   messaging.onBackgroundMessage(function(payload) {
     console.log('[firebase-messaging-sw.js] Received background message: ', payload);

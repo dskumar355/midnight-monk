@@ -18,6 +18,14 @@ const resolveApiRoot = () => {
 const API_ROOT = resolveApiRoot().replace(/\/+$/, "");
 const BASE_URL = `${API_ROOT}/api`;
 
+export const resolveMediaUrl = (url) => {
+  if (!url) return "";
+  if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:") || url.startsWith("blob:")) {
+    return url;
+  }
+  return `${API_ROOT}${url.startsWith("/") ? "" : "/"}${url}`;
+};
+
 // ─────────────────────────────────────────
 // 🔧 HELPER — make authenticated requests
 // ─────────────────────────────────────────

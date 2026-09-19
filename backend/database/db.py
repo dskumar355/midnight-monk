@@ -1,9 +1,11 @@
+import gridfs
 from pymongo import MongoClient
 from config import Config
 
 # ✅ Connect to MongoDB Atlas using Config class
 client = MongoClient(Config.MONGO_URI)
 db = client[Config.DATABASE_NAME]
+fs = gridfs.GridFS(db)
 
 # ✅ Collections — one for each data type
 users_collection        = db["users"]

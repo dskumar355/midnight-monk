@@ -202,8 +202,11 @@ def generate_valid_preorder_slots(kitchen, now_dt=None, slot_interval_minutes=30
 
                 slots.append({
                     "iso": curr_slot.isoformat(),
+                    "isoString": curr_slot.isoformat(),
                     "date": curr_slot.strftime("%Y-%m-%d"),
+                    "dateLabel": day_label,
                     "time": time_label,
+                    "timeSlot": time_label,
                     "label": f"{day_label} · {time_label}",
                 })
             curr_slot += timedelta(minutes=slot_interval_minutes)
@@ -284,7 +287,7 @@ def format_kitchen(kitchen):
     status_info = get_kitchen_business_status(kitchen)
 
     return {
-        "id":                   str(kitchen["_id"]),
+        "id":                   str(kitchen.get("_id") or kitchen.get("id") or kitchen.get("kitchen_id", "")),
         "kitchen_id":           kitchen.get("kitchen_id", ""),
         "kitchenId":            kitchen.get("kitchen_id", ""),
         "name":                 kitchen.get("kitchen_name", ""),

@@ -52,9 +52,20 @@ except ImportError:
 def record_in_app_notification(user_id, order_id, ntype, title, body, data=None):
     """
     Store notification history in MongoDB `notifications` collection for the customer/admin.
+    Idempotent: prevents duplicate records for identical (user_id, order_id, type).
     """
     if not user_id:
         return None
+
+    # Deduplication check
+    if order_id and ntype:
+        existing = notifications_collection.find_one({
+            "user_id": str(user_id),
+            "order_id": str(order_id),
+            "type": ntype,
+        })
+        if existing:
+            return existing
 
     doc = {
         "user_id": str(user_id),
@@ -122,8 +133,41 @@ def send_fcm_push(user_id, title, body, data=None):
 # ─── Combined Trigger Function ───
 def dispatch_order_notification(user_id, order_id, ntype, title, body, data=None):
     """Record in-app history AND send FCM push notification."""
-    record_in_app_notification(user_id, order_id, ntype, title, body, data)
-    send_fcm_push(user_id, title, body, data)
+    notif = record_in_app_notification(user_id, order_id, ntype, title, body, data)
+    # If it was already existing, do not re-send push
+    if notif and notif.get("_id") and notif.get("read") is False:
+        send_fcm_push(user_id, title, body, data)
+
+
+def _resolve_order_args(arg0, *args, **kwargs):
+    """
+    Polymorphic parser supporting either:
+    (order_dict) OR (user_phone, user_name, order_id, ...)
+    Returns (order_id, user_id, user_name, extra_dict)
+    """
+    if isinstance(arg0, dict):
+        order = arg0
+        order_id = str(order.get("_id") or order.get("id") or "")
+        user = order.get("user") or {}
+        user_id = str(user.get("id") or user.get("_id") or order.get("user_id") or "")
+        user_name = user.get("name", "Customer")
+        extra = {
+            "scheduled_for": order.get("scheduled_for", ""),
+            "rider_name": order.get("delivery_assignment", {}).get("partner_name", "Rider"),
+            "total": order.get("total", 0),
+        }
+        return order_id, user_id, user_name, extra
+
+    # Called with positional args: (user_phone, user_name, order_id, ...)
+    user_name = str(args[0]) if len(args) > 0 else "Customer"
+    order_id = str(args[1]) if len(args) > 1 else str(kwargs.get("order_id", ""))
+    user_id = str(kwargs.get("user_id") or "")
+    extra = {
+        "scheduled_for": str(args[2]) if len(args) > 2 else str(kwargs.get("scheduled_for", "")),
+        "rider_name": str(kwargs.get("rider_name", "Rider")),
+        "total": kwargs.get("total", 0),
+    }
+    return order_id, user_id, user_name, extra
 
 
 # ─── Order Transition Event Triggers ───
@@ -146,13 +190,11 @@ def notify_order_placed(user_phone, user_name, order_id, total, is_preorder=Fals
         })
 
 
-def notify_preorder_accepted(order):
+def notify_preorder_accepted(order_or_phone, *args, **kwargs):
     """Kitchen accepts a preorder."""
-    order_id = str(order.get("_id") or order.get("id"))
+    order_id, user_id, user_name, extra = _resolve_order_args(order_or_phone, *args, **kwargs)
     short_id = order_id[-6:].upper()
-    user = order.get("user") or {}
-    user_id = str(user.get("_id") or user.get("id") or order.get("user_id") or "")
-    scheduled_for = order.get("scheduled_for", "")
+    scheduled_for = extra.get("scheduled_for", "")
 
     title = "✅ Preorder Accepted"
     body = f"Your order #{short_id} has been accepted by the kitchen. Scheduled for delivery: {scheduled_for}."
@@ -163,12 +205,10 @@ def notify_preorder_accepted(order):
     })
 
 
-def notify_order_preparing(order):
+def notify_order_preparing(order_or_phone, *args, **kwargs):
     """Kitchen begins preparation."""
-    order_id = str(order.get("_id") or order.get("id"))
+    order_id, user_id, user_name, _ = _resolve_order_args(order_or_phone, *args, **kwargs)
     short_id = order_id[-6:].upper()
-    user = order.get("user") or {}
-    user_id = str(user.get("_id") or user.get("id") or order.get("user_id") or "")
 
     title = "🍳 Kitchen Started Preparing"
     body = f"The kitchen is now preparing your hot meal for order #{short_id}."
@@ -179,12 +219,10 @@ def notify_order_preparing(order):
     })
 
 
-def notify_order_ready(order):
+def notify_order_ready(order_or_phone, *args, **kwargs):
     """Food is packed & ready for pickup."""
-    order_id = str(order.get("_id") or order.get("id"))
+    order_id, user_id, user_name, _ = _resolve_order_args(order_or_phone, *args, **kwargs)
     short_id = order_id[-6:].upper()
-    user = order.get("user") or {}
-    user_id = str(user.get("_id") or user.get("id") or order.get("user_id") or "")
 
     title = "📦 Food is Ready"
     body = f"Order #{short_id} has been prepared and packed. Waiting for rider pickup."
@@ -195,13 +233,11 @@ def notify_order_ready(order):
     })
 
 
-def notify_rider_picked_up(order):
+def notify_rider_picked_up(order_or_phone, *args, **kwargs):
     """Rider picked up order from kitchen."""
-    order_id = str(order.get("_id") or order.get("id"))
+    order_id, user_id, user_name, extra = _resolve_order_args(order_or_phone, *args, **kwargs)
     short_id = order_id[-6:].upper()
-    user = order.get("user") or {}
-    user_id = str(user.get("_id") or user.get("id") or order.get("user_id") or "")
-    rider_name = order.get("delivery_assignment", {}).get("partner_name") or "Rider"
+    rider_name = extra.get("rider_name", "Rider")
 
     title = "🛵 Order Picked Up"
     body = f"{rider_name} has picked up your feast #{short_id} from the kitchen."
@@ -212,12 +248,10 @@ def notify_rider_picked_up(order):
     })
 
 
-def notify_out_for_delivery(order):
+def notify_out_for_delivery(order_or_phone, *args, **kwargs):
     """Rider is on the way."""
-    order_id = str(order.get("_id") or order.get("id"))
+    order_id, user_id, user_name, _ = _resolve_order_args(order_or_phone, *args, **kwargs)
     short_id = order_id[-6:].upper()
-    user = order.get("user") or {}
-    user_id = str(user.get("_id") or user.get("id") or order.get("user_id") or "")
 
     title = "🚀 Out for Delivery"
     body = f"Your order #{short_id} is on the way! Watch the live rider on the tracking map."
@@ -228,12 +262,10 @@ def notify_out_for_delivery(order):
     })
 
 
-def notify_order_delivered(order):
+def notify_order_delivered(order_or_phone, *args, **kwargs):
     """Order delivered with photo proof and OTP."""
-    order_id = str(order.get("_id") or order.get("id"))
+    order_id, user_id, user_name, _ = _resolve_order_args(order_or_phone, *args, **kwargs)
     short_id = order_id[-6:].upper()
-    user = order.get("user") or {}
-    user_id = str(user.get("_id") or user.get("id") or order.get("user_id") or "")
 
     title = "🎉 Order Delivered"
     body = f"Your Midnight Monk order #{short_id} has been delivered successfully. Delivery proof photo is available."

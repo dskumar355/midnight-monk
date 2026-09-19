@@ -72,7 +72,7 @@ export default function Checkout() {
           if (data.canOrderNow === false && data.canPreorder === true) {
             setOrderType("PREORDER");
             if (data.preorderSlots && data.preorderSlots.length > 0) {
-              setScheduledFor(data.preorderSlots[0].isoString);
+              setScheduledFor(data.preorderSlots[0].iso || data.preorderSlots[0].isoString || "");
             }
           }
         }
@@ -512,7 +512,7 @@ export default function Checkout() {
               <button
                 type="button"
                 onClick={() => setOrderType("PREORDER")}
-                disabled={!kitchen?.preorder_enabled}
+                disabled={kitchen?.canPreorder === false && !kitchen?.preorder_enabled && !kitchen?.preorderEnabled}
                 style={{
                   flex: 1,
                   padding: "10px 12px",
@@ -523,7 +523,7 @@ export default function Checkout() {
                   fontWeight: orderType === "PREORDER" ? "800" : "600",
                   fontSize: "13px",
                   cursor: "pointer",
-                  opacity: kitchen?.preorder_enabled ? 1 : 0.5,
+                  opacity: (kitchen?.canPreorder !== false || kitchen?.preorder_enabled || kitchen?.preorderEnabled) ? 1 : 0.5,
                 }}
               >
                 🌙 Schedule Pre-order<br />
@@ -555,8 +555,8 @@ export default function Checkout() {
                 >
                   <option value="">-- Choose a delivery window --</option>
                   {kitchen.preorderSlots.map((slot, idx) => (
-                    <option key={idx} value={slot.isoString}>
-                      {slot.dateLabel} · {slot.timeSlot}
+                    <option key={idx} value={slot.iso || slot.isoString}>
+                      {slot.label || `${slot.dateLabel || slot.date} · ${slot.timeSlot || slot.time}`}
                     </option>
                   ))}
                 </select>

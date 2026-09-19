@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { api } from "../services/api";
+import { api, resolveMediaUrl } from "../services/api";
 import { useUserAuth } from "../context/UserAuthContext";
 import { useTheme } from "../context/ThemeContext";
 import { subscribeToOrder } from "../services/socket";
@@ -779,7 +779,7 @@ export default function TrackOrder() {
 
               <div style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.15)", marginBottom: "14px", backgroundColor: "#000" }}>
                 <img
-                  src={tracking.delivery_proof.photo_url}
+                  src={resolveMediaUrl(tracking.delivery_proof.photo_url || tracking.delivery_proof.photo_data)}
                   alt="Delivery Proof Photo"
                   style={{ width: "100%", maxHeight: "380px", objectFit: "contain", display: "block" }}
                 />

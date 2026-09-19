@@ -568,9 +568,9 @@ def upload_delivery_proof(order_id):
     if assigned_id != payload.get("id"):
         return jsonify({"error": "You can only upload delivery proof for your assigned order"}), 403
 
-    photo_data_b64 = None
     file_bytes = None
     filename = None
+    mime_type = "image/jpeg"
 
     if "photo" in request.files:
         file = request.files["photo"]
@@ -578,14 +578,17 @@ def upload_delivery_proof(order_id):
             file_bytes = file.read()
             ext = os.path.splitext(file.filename)[1].lower() or ".jpg"
             filename = f"proof_{order_id}_{int(datetime.utcnow().timestamp())}{ext}"
-            photo_data_b64 = f"data:image/jpeg;base64,{base64.b64encode(file_bytes).decode('utf-8')}"
+            mime_type = file.mimetype or "image/jpeg"
     elif request.is_json:
         data = request.json or {}
         raw_b64 = data.get("photo_data") or data.get("photo")
         if raw_b64:
-            photo_data_b64 = raw_b64
             if "base64," in raw_b64:
-                _, encoded = raw_b64.split("base64,", 1)
+                prefix, encoded = raw_b64.split("base64,", 1)
+                if "image/png" in prefix:
+                    mime_type = "image/png"
+                elif "image/webp" in prefix:
+                    mime_type = "image/webp"
                 file_bytes = base64.b64decode(encoded)
             else:
                 file_bytes = base64.b64decode(raw_b64)
@@ -594,20 +597,30 @@ def upload_delivery_proof(order_id):
     if not file_bytes:
         return jsonify({"error": "Photo file or base64 photo data is required"}), 400
 
-    # Save to disk if upload folder configured
+    # Save to persistent storage (Cloudinary CDN or MongoDB GridFS)
+    from services.storage_service import save_delivery_proof_photo
+    storage_meta, storage_err = save_delivery_proof_photo(order_id, file_bytes, filename, mime_type)
+    if storage_err or not storage_meta:
+        return jsonify({"error": f"Failed to save delivery proof: {storage_err}"}), 500
+
+    # Also keep a local cache file on disk if upload folder is available
     upload_folder = current_app.config.get("UPLOAD_FOLDER")
     if upload_folder:
-        proofs_dir = os.path.join(upload_folder, "delivery_proofs")
-        os.makedirs(proofs_dir, exist_ok=True)
-        filepath = os.path.join(proofs_dir, filename)
-        with open(filepath, "wb") as f:
-            f.write(file_bytes)
+        try:
+            proofs_dir = os.path.join(upload_folder, "delivery_proofs")
+            os.makedirs(proofs_dir, exist_ok=True)
+            filepath = os.path.join(proofs_dir, filename)
+            with open(filepath, "wb") as f:
+                f.write(file_bytes)
+        except Exception:
+            pass
 
     now = datetime.utcnow().isoformat()
     proof_doc = {
-        "photo_url": f"/api/orders/{order_id}/delivery-proof-image",
+        "photo_url": storage_meta.get("photo_url"),
+        "storage_provider": storage_meta.get("storage_provider", "gridfs"),
+        "gridfs_id": storage_meta.get("gridfs_id"),
         "filename": filename,
-        "photo_data": photo_data_b64,
         "captured_at": now,
         "uploaded_by": payload.get("id"),
         "delivery_partner_name": payload.get("name", "Delivery Partner"),
@@ -630,7 +643,8 @@ def upload_delivery_proof(order_id):
     return jsonify({
         "message": "Delivery proof photo uploaded successfully",
         "delivery_proof": {
-            "photo_url": f"/api/orders/{order_id}/delivery-proof-image",
+            "photo_url": storage_meta.get("photo_url"),
+            "storage_provider": storage_meta.get("storage_provider", "gridfs"),
             "captured_at": now,
             "filename": filename,
         }
@@ -648,9 +662,15 @@ def get_delivery_proof_image(order_id):
         return jsonify({"error": "Delivery proof not found"}), 404
 
     proof = order["delivery_proof"]
-    filename = proof.get("filename")
+    photo_url = proof.get("photo_url") or ""
 
-    # Try serving from disk first
+    # If photo_url is an external CDN URL (e.g. Cloudinary), redirect client to CDN
+    if photo_url.startswith("http://") or photo_url.startswith("https://"):
+        from flask import redirect
+        return redirect(photo_url)
+
+    # Try local cache file first
+    filename = proof.get("filename")
     upload_folder = current_app.config.get("UPLOAD_FOLDER")
     if upload_folder and filename:
         proofs_dir = os.path.join(upload_folder, "delivery_proofs")
@@ -658,15 +678,13 @@ def get_delivery_proof_image(order_id):
         if os.path.exists(filepath):
             return send_from_directory(proofs_dir, filename)
 
-    # Fallback to serving stored base64
-    photo_data = proof.get("photo_data")
-    if photo_data:
-        if "base64," in photo_data:
-            _, encoded = photo_data.split("base64,", 1)
-            raw_bytes = base64.b64decode(encoded)
-        else:
-            raw_bytes = base64.b64decode(photo_data)
-        return Response(raw_bytes, mimetype="image/jpeg")
+    # Stream from persistent GridFS
+    from services.storage_service import get_delivery_proof_stream
+    img_bytes, mime_type = get_delivery_proof_stream(order)
+    if img_bytes:
+        return Response(img_bytes, mimetype=mime_type or "image/jpeg", headers={
+            "Cache-Control": "public, max-age=86400",
+        })
 
     return jsonify({"error": "Image data unavailable"}), 404
 

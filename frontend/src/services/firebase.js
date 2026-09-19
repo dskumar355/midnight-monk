@@ -71,7 +71,15 @@ export const requestFcmToken = async () => {
     let registration;
     if ("serviceWorker" in navigator) {
       try {
-        registration = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+        const swParams = new URLSearchParams({
+          apiKey: firebaseConfig.apiKey || "",
+          projectId: firebaseConfig.projectId || "",
+          messagingSenderId: firebaseConfig.messagingSenderId || "",
+          appId: firebaseConfig.appId || "",
+          authDomain: firebaseConfig.authDomain || "",
+          storageBucket: firebaseConfig.storageBucket || "",
+        }).toString();
+        registration = await navigator.serviceWorker.register(`/firebase-messaging-sw.js?${swParams}`);
       } catch (swErr) {
         console.warn("[FCM] Service worker registration note:", swErr.message);
       }

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMasterAuth } from "../context/MasterAuthContext";
 import { useOrders } from "../context/OrderContext";
 import { useNavigate } from "react-router-dom";
+import { resolveMediaUrl } from "../services/api";
 
 const STATUS_COLORS = { ORDER_PLACED:"#3498db", ACCEPTED:"#0ea5e9", PREPARING:"#e67e22", READY:"#8b5cf6", ASSIGNED:"#7c3aed", PICKED_UP:"#f97316", OUT_FOR_DELIVERY:"#22c55e", DELIVERED:"#16a34a" };
 
@@ -151,7 +152,7 @@ export default function MasterOrders() {
               <h3 style={{ margin: 0, fontSize: "16px" }}>Verified Delivery Proof</h3>
               <button onClick={() => setSelectedProof(null)} style={{ border: "none", background: "none", fontSize: "18px", cursor: "pointer" }}>✕</button>
             </div>
-            <img src={selectedProof.photo_url} alt="Delivery Proof" style={{ width: "100%", maxHeight: "350px", objectFit: "contain", borderRadius: "8px", border: "1px solid #eee" }} />
+            <img src={resolveMediaUrl(selectedProof.photo_url || selectedProof.photo_data)} alt="Delivery Proof" style={{ width: "100%", maxHeight: "350px", objectFit: "contain", borderRadius: "8px", border: "1px solid #eee" }} />
             <p style={{ fontSize: "12px", color: "#666", marginTop: "10px" }}>
               Rider: <strong>{selectedProof.delivery_partner_name || "Partner"}</strong> · {selectedProof.captured_at ? new Date(selectedProof.captured_at).toLocaleString() : ""}
             </p>

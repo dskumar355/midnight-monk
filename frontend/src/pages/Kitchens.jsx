@@ -192,57 +192,113 @@ export default function Kitchens() {
 }
 
 function KitchenCard({ kitchen: k, t, onSelect }) {
-  const isOpen = k.isOpen !== false;
+  const canInteract = k.canOrderNow || k.canPreorder || k.isOpen !== false;
+  const isCurrentlyOpen = k.businessStatus === "OPEN" || (k.canOrderNow && k.isOpen !== false);
+  const isPreorder = k.businessStatus === "PREORDER_AVAILABLE" || (!k.canOrderNow && k.canPreorder);
+  const isTempClosed = k.businessStatus === "TEMPORARILY_CLOSED" || k.is_temporarily_closed;
+
   const imageUrl = k.image || FALLBACK_IMAGES[(k.name?.length || 0 + (k.location?.length || 0)) % FALLBACK_IMAGES.length];
   const rating = Number(k.rating || 4.5).toFixed(1);
   const eta = k.deliveryTime || k.eta || "20-30 min";
 
+  let statusBadgeColor = "#22c55e";
+  let statusBadgeBg = "rgba(34,197,94,0.18)";
+  let statusText = "Open now";
+
+  if (isTempClosed) {
+    statusBadgeColor = "#f87171";
+    statusBadgeBg = "rgba(239,68,68,0.22)";
+    statusText = "Temporarily Closed";
+  } else if (isCurrentlyOpen) {
+    statusBadgeColor = "#4ade80";
+    statusBadgeBg = "rgba(34,197,94,0.22)";
+    statusText = "🟢 Open now";
+  } else if (isPreorder) {
+    statusBadgeColor = "#c084fc";
+    statusBadgeBg = "rgba(168,85,247,0.25)";
+    statusText = `🌙 Pre-order Open (${k.nextOpening || "Tonight"})`;
+  } else {
+    statusBadgeColor = "#94a3b8";
+    statusBadgeBg = "rgba(148,163,184,0.22)";
+    statusText = `Closed · Opens ${k.opening_time || "22:00"}`;
+  }
+
   return (
     <div
-      onClick={() => onSelect(k)}
+      onClick={() => canInteract && onSelect(k)}
       style={{
         background: t.card,
         border: `1px solid ${t.border}`,
         borderRadius: "22px",
         overflow: "hidden",
         boxShadow: t.shadow,
-        cursor: isOpen ? "pointer" : "not-allowed",
-        opacity: isOpen ? 1 : 0.72,
+        cursor: canInteract ? "pointer" : "not-allowed",
+        opacity: canInteract ? 1 : 0.65,
         transition: "all 0.2s ease",
       }}
       onMouseEnter={e => {
-        e.currentTarget.style.transform = "translateY(-4px)";
-        e.currentTarget.style.borderColor = "rgba(168,177,159,0.35)";
+        if (canInteract) {
+          e.currentTarget.style.transform = "translateY(-4px)";
+          e.currentTarget.style.borderColor = "rgba(168,177,159,0.35)";
+        }
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.borderColor = t.border;
+        if (canInteract) {
+          e.currentTarget.style.transform = "translateY(0)";
+          e.currentTarget.style.borderColor = t.border;
+        }
       }}
     >
       <div style={{ position: "relative" }}>
         <img src={imageUrl} alt={k.name} style={{ width: "100%", height: "230px", objectFit: "cover", display: "block" }} />
-        <div style={{ position: "absolute", left: "14px", top: "14px", background: "rgba(39,37,31,0.72)", border: `1px solid ${t.border}`, color: "#efe2ca", borderRadius: "999px", padding: "6px 10px", fontSize: "10px", fontWeight: "800", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-          {isOpen ? "Open now" : "Closed"}
+        <div style={{
+          position: "absolute",
+          left: "14px",
+          top: "14px",
+          background: statusBadgeBg,
+          border: `1.5px solid ${statusBadgeColor}`,
+          color: statusBadgeColor,
+          borderRadius: "999px",
+          padding: "6px 12px",
+          fontSize: "11px",
+          fontWeight: "800",
+          letterSpacing: "0.06em",
+          backdropFilter: "blur(6px)",
+        }}>
+          {statusText}
         </div>
       </div>
 
       <div style={{ padding: "18px 16px 16px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "10px" }}>
-          <h3 style={{ margin: 0, color: t.text, fontSize: "26px", lineHeight: 1.1 }}>{k.name}</h3>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+          <h3 style={{ margin: 0, color: t.text, fontSize: "24px", lineHeight: 1.1 }}>{k.name}</h3>
           <span style={{ color: t.accentText, background: t.accentSoft, borderRadius: "999px", padding: "5px 8px", fontSize: "12px", fontWeight: "800" }}>★ {rating}</span>
         </div>
 
-        <p style={{ margin: "0 0 14px", color: t.textSoft, fontSize: "13px" }}>{k.tag || "Late-night favorites"}</p>
+        <p style={{ margin: "0 0 10px", color: t.textSoft, fontSize: "13px" }}>{k.tag || "Late-night favorites"}</p>
 
         <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
-          <span style={{ background: t.bgSoft, color: t.textSoft, border: `1px solid ${t.border}`, borderRadius: "999px", padding: "7px 10px", fontSize: "11px", fontWeight: "700" }}>★ {rating} ({k.reviews ? `${k.reviews} reviews` : "Verified"})</span>
-          <span style={{ background: t.bgSoft, color: t.textSoft, border: `1px solid ${t.border}`, borderRadius: "999px", padding: "7px 10px", fontSize: "11px", fontWeight: "700" }}>⚡ {eta}</span>
+          <span style={{ background: t.bgSoft, color: t.textSoft, border: `1px solid ${t.border}`, borderRadius: "999px", padding: "5px 10px", fontSize: "11px", fontWeight: "700" }}>
+            🕒 {k.opening_time || "22:00"} – {k.closing_time || "06:00"}
+          </span>
+          <span style={{ background: t.bgSoft, color: t.textSoft, border: `1px solid ${t.border}`, borderRadius: "999px", padding: "5px 10px", fontSize: "11px", fontWeight: "700" }}>
+            ⚡ {eta}
+          </span>
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "10px", borderTop: `1px solid ${t.border}`, paddingTop: "14px" }}>
           <div style={{ color: t.mutedText, fontSize: "12px", fontWeight: "600" }}>📍 {k.location || "Vadodara"}</div>
-          <button style={{ background: isOpen ? t.accent : "transparent", color: isOpen ? t.accentText : t.textSoft, border: isOpen ? "none" : `1px solid ${t.border}`, borderRadius: "12px", padding: "10px 12px", fontWeight: "800", cursor: isOpen ? "pointer" : "not-allowed" }}>
-            {isOpen ? "Explore →" : "Closed"}
+          <button style={{
+            background: isCurrentlyOpen ? t.accent : isPreorder ? "#9333ea" : "transparent",
+            color: (isCurrentlyOpen || isPreorder) ? "#fff" : t.textSoft,
+            border: (isCurrentlyOpen || isPreorder) ? "none" : `1px solid ${t.border}`,
+            borderRadius: "12px",
+            padding: "10px 14px",
+            fontWeight: "800",
+            fontSize: "12px",
+            cursor: canInteract ? "pointer" : "not-allowed",
+          }}>
+            {isCurrentlyOpen ? "Order Now →" : isPreorder ? "Pre-order →" : "Closed"}
           </button>
         </div>
       </div>

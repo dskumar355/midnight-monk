@@ -184,6 +184,13 @@ export const api = {
       headers: getHeaders("admin"),
     }).then((res) => handleResponse(res, "admin")),
 
+  updateKitchenSettings: (kitchenId, settings) =>
+    fetch(`${BASE_URL}/kitchens/${kitchenId}/settings`, {
+      method: "PATCH",
+      headers: getHeaders("admin"),
+      body: JSON.stringify(settings),
+    }).then((res) => handleResponse(res, "admin")),
+
   // ─────────────────────────────────────────
   // 🍲 MENU
   // ─────────────────────────────────────────
@@ -268,6 +275,20 @@ export const api = {
       headers: getHeaders("delivery"),
       body: JSON.stringify(data),
     }).then((res) => handleResponse(res, "delivery")),
+
+  uploadDeliveryProof: (orderId, payload) => {
+    const isFormData = typeof FormData !== "undefined" && payload instanceof FormData;
+    const token = getTokenForRole("delivery");
+    const headers = {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(isFormData ? {} : { "Content-Type": "application/json" }),
+    };
+    return fetch(`${BASE_URL}/orders/${orderId}/delivery-proof`, {
+      method: "POST",
+      headers,
+      body: isFormData ? payload : JSON.stringify(payload),
+    }).then((res) => handleResponse(res, "delivery"));
+  },
 
   getOrderStats: () =>
     fetch(`${BASE_URL}/orders/stats`, { headers: getHeaders("master") }).then((res) => handleResponse(res, "master")),
@@ -473,4 +494,31 @@ export const api = {
 
   getAuditLogs: (limit = 50) =>
     fetch(`${BASE_URL}/security/audit-logs?limit=${limit}`, { headers: getHeaders("master") }).then((res) => handleResponse(res, "master")),
+
+  // ─────────────────────────────────────────
+  // 🔔 NOTIFICATIONS & PUSH (FCM)
+  // ─────────────────────────────────────────
+  registerFcmToken: (token, deviceInfo = {}) =>
+    fetch(`${BASE_URL}/notifications/register-token`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ token, device_info: deviceInfo }),
+    }).then(handleResponse),
+
+  getNotifications: (limit = 30) =>
+    fetch(`${BASE_URL}/notifications?limit=${limit}`, {
+      headers: getHeaders(),
+    }).then(handleResponse),
+
+  markNotificationRead: (id) =>
+    fetch(`${BASE_URL}/notifications/${id}/read`, {
+      method: "PATCH",
+      headers: getHeaders(),
+    }).then(handleResponse),
+
+  markAllNotificationsRead: () =>
+    fetch(`${BASE_URL}/notifications/read-all`, {
+      method: "PATCH",
+      headers: getHeaders(),
+    }).then(handleResponse),
 };

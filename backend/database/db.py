@@ -16,6 +16,8 @@ support_collection      = db["support"]
 master_admins_collection = db["master_admins"]
 audit_logs_collection   = db["audit_logs"]
 coupons_collection      = db["coupons"]
+notifications_collection = db["notifications"]
+notification_tokens_collection = db["notification_tokens"]
 
 # Helpful indexes for delivery operations & high-throughput querying
 try:
@@ -32,6 +34,7 @@ try:
     orders_collection.create_index([("user.mobile", 1), ("createdAt", -1)])
     orders_collection.create_index([("delivery_assignment.partner_id", 1), ("status", 1)])
     orders_collection.create_index([("status", 1), ("createdAt", -1)])
+    orders_collection.create_index([("order_type", 1), ("scheduled_for", 1)])
     orders_collection.create_index([("createdAt", -1)])
     orders_collection.create_index([("id", 1)])
 
@@ -47,10 +50,14 @@ try:
     users_collection.create_index([("mobile", 1)])
     admins_collection.create_index([("username", 1)])
 
-    # Audit & Coupons
+    # Audit, Coupons & Notifications
     audit_logs_collection.create_index([("target_id", 1)])
     audit_logs_collection.create_index([("createdAt", -1)])
     coupons_collection.create_index([("code", 1)])
+    notifications_collection.create_index([("user_id", 1), ("createdAt", -1)])
+    notifications_collection.create_index([("order_id", 1)])
+    notification_tokens_collection.create_index([("user_id", 1)])
+    notification_tokens_collection.create_index([("token", 1)], unique=False)
 except Exception as e:
     pass
 

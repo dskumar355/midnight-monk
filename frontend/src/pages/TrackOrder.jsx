@@ -80,6 +80,7 @@ export default function TrackOrder() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [liveToast, setLiveToast] = useState("");
+  const [showProofModal, setShowProofModal] = useState(false);
   const pollTimerRef = useRef(null);
 
   const fetchTrackingData = useCallback(async (isInitial = false) => {
@@ -418,8 +419,68 @@ export default function TrackOrder() {
                 lastUpdated={tracking?.last_gps_update}
               />
             )}
+
+            {isDelivered && tracking?.delivery_proof?.photo_url && (
+              <button
+                type="button"
+                onClick={() => setShowProofModal(true)}
+                style={{
+                  background: "rgba(34,197,94,0.15)",
+                  border: "1px solid #22c55e",
+                  color: "#86efac",
+                  padding: "6px 12px",
+                  borderRadius: "8px",
+                  fontSize: "11px",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
+                }}
+              >
+                📸 View Delivery Proof
+              </button>
+            )}
           </div>
         </div>
+
+        {/* ── 🌙 Pre-order Scheduled Banner ── */}
+        {tracking?.order_type === "PREORDER" && (
+          <div style={{
+            backgroundColor: "rgba(168,85,247,0.12)",
+            border: "1.5px solid rgba(168,85,247,0.35)",
+            borderRadius: "14px",
+            padding: "12px 18px",
+            marginBottom: "18px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: "10px",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+              <span style={{ fontSize: "24px" }}>🌙</span>
+              <div>
+                <div style={{ fontSize: "14px", fontWeight: "800", color: "#c084fc" }}>
+                  Scheduled Midnight Pre-order
+                </div>
+                <div style={{ fontSize: "12px", color: t.subText || "#cbd5e1" }}>
+                  Scheduled Delivery Window: <strong>{tracking.scheduled_for ? new Date(tracking.scheduled_for).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : "Scheduled Shift"}</strong>
+                </div>
+              </div>
+            </div>
+            <span style={{
+              backgroundColor: tracking.status === "SCHEDULED" ? "rgba(168,85,247,0.2)" : "rgba(34,197,94,0.2)",
+              color: tracking.status === "SCHEDULED" ? "#c084fc" : "#86efac",
+              borderRadius: "999px",
+              padding: "4px 12px",
+              fontSize: "11px",
+              fontWeight: "800",
+            }}>
+              {tracking.status === "SCHEDULED" ? "Pending Shift Opening" : "In Preparation"}
+            </span>
+          </div>
+        )}
 
         {/* ── Status Stepper Bar ── */}
         <div style={{
@@ -641,40 +702,121 @@ export default function TrackOrder() {
           </div>
         </div>
 
-        {/* ── Order Items Summary ── */}
-        {tracking?.items && tracking.items.length > 0 && (
+        {/* ── Special Instructions (Food & Delivery) ── */}
+        {(tracking?.food_instructions || tracking?.delivery_instructions) && (
           <div style={{
             backgroundColor: t.card || "#1a1a2e",
             borderRadius: "16px",
-            padding: "18px 20px",
+            padding: "16px 20px",
             border: `1px solid ${t.border || "rgba(201,120,62,0.15)"}`,
+            marginTop: "16px",
           }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <span style={{ fontSize: "13px", fontWeight: "800", color: t.text || "#fff" }}>
-                📦 ORDER SUMMARY ({tracking.items.length} item{tracking.items.length !== 1 ? "s" : ""})
-              </span>
-              <span style={{ fontSize: "16px", fontWeight: "900", color: t.accent || "#C9783E" }}>
-                Total: ₹{tracking.total}
-              </span>
+            <h4 style={{ margin: "0 0 10px 0", fontSize: "13px", fontWeight: "800", color: t.text || "#fff" }}>
+              📝 ORDER INSTRUCTIONS
+            </h4>
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {tracking.food_instructions && (
+                <div style={{ fontSize: "12px", color: t.subText || "#cbd5e1" }}>
+                  <strong style={{ color: "#f5a623" }}>🍽️ Kitchen Prep:</strong> {tracking.food_instructions}
+                </div>
+              )}
+              {tracking.delivery_instructions && (
+                <div style={{ fontSize: "12px", color: t.subText || "#cbd5e1" }}>
+                  <strong style={{ color: "#38bdf8" }}>🛵 Rider Delivery:</strong> {tracking.delivery_instructions}
+                </div>
+              )}
             </div>
+          </div>
+        )}
 
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-              {tracking.items.map((item, idx) => (
-                <span
-                  key={idx}
+        {/* ── Delivery Proof Photo Inspection Modal ── */}
+        {showProofModal && tracking?.delivery_proof && (
+          <div style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.85)",
+            backdropFilter: "blur(6px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "16px",
+          }}>
+            <div style={{
+              backgroundColor: "#0f172a",
+              border: "1.5px solid #22c55e",
+              borderRadius: "20px",
+              padding: "20px",
+              maxWidth: "520px",
+              width: "100%",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.7)",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "20px" }}>📸</span>
+                  <h3 style={{ margin: 0, color: "#86efac", fontSize: "17px" }}>Verified Delivery Proof</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowProofModal(false)}
                   style={{
-                    backgroundColor: t.cardAlt || "rgba(255,255,255,0.04)",
-                    border: `1px solid ${t.border || "rgba(255,255,255,0.08)"}`,
-                    borderRadius: "8px",
-                    padding: "6px 12px",
-                    fontSize: "12px",
-                    fontWeight: "600",
-                    color: t.text || "#fff",
+                    background: "rgba(255,255,255,0.1)",
+                    border: "none",
+                    borderRadius: "50%",
+                    width: "32px",
+                    height: "32px",
+                    color: "#fff",
+                    fontSize: "16px",
+                    cursor: "pointer",
                   }}
                 >
-                  {item.name} ×{item.quantity || 1}
-                </span>
-              ))}
+                  ✕
+                </button>
+              </div>
+
+              <div style={{ borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255,255,255,0.15)", marginBottom: "14px", backgroundColor: "#000" }}>
+                <img
+                  src={tracking.delivery_proof.photo_url}
+                  alt="Delivery Proof Photo"
+                  style={{ width: "100%", maxHeight: "380px", objectFit: "contain", display: "block" }}
+                />
+              </div>
+
+              <div style={{ fontSize: "12px", color: "#94a3b8", display: "flex", flexDirection: "column", gap: "4px" }}>
+                <div>
+                  👤 <strong>Delivered by:</strong> {tracking.delivery_proof.delivery_partner_name || "Midnight Monk Partner"}
+                </div>
+                <div>
+                  🕒 <strong>Captured at:</strong> {tracking.delivery_proof.captured_at ? new Date(tracking.delivery_proof.captured_at).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "medium" }) : "Recently"}
+                </div>
+                {tracking.delivery_proof.notes && (
+                  <div>
+                    📝 <strong>Rider Notes:</strong> {tracking.delivery_proof.notes}
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowProofModal(false)}
+                style={{
+                  width: "100%",
+                  marginTop: "16px",
+                  padding: "10px",
+                  borderRadius: "10px",
+                  backgroundColor: "#22c55e",
+                  border: "none",
+                  color: "#000",
+                  fontWeight: "800",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                Close Proof
+              </button>
             </div>
           </div>
         )}

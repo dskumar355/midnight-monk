@@ -16,12 +16,33 @@ export default function AdminDashboard() {
   const [menuLoading, setMenuLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(true);
   const [loadingToggle, setLoadingToggle] = useState(false);
+  const [kitchenDoc, setKitchenDoc] = useState(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({
+    opening_time: "22:00",
+    closing_time: "06:00",
+    preorder_enabled: true,
+    is_temporarily_closed: false,
+    prep_lead_time_minutes: 20,
+  });
+  const [scheduleSaving, setScheduleSaving] = useState(false);
+  const [scheduleMsg, setScheduleMsg] = useState("");
 
   useEffect(() => {
     if (!admin) { navigate("/kitchen-admin/login"); return; }
     const loadData = () => {
       api.getKitchenOrders(admin.kitchenId).then(setOrders).catch(() => { });
-      api.getKitchen(admin.kitchenId).then(k => setIsOpen(k.isOpen)).catch(() => { });
+      api.getKitchen(admin.kitchenId).then(k => {
+        setIsOpen(k.isOpen);
+        setKitchenDoc(k);
+        setScheduleForm({
+          opening_time: k.opening_time || "22:00",
+          closing_time: k.closing_time || "06:00",
+          preorder_enabled: k.preorder_enabled !== false,
+          is_temporarily_closed: Boolean(k.is_temporarily_closed),
+          prep_lead_time_minutes: k.prep_lead_time_minutes || 20,
+        });
+      }).catch(() => { });
     };
     loadData();
     api.getMenu(admin.kitchenId).then(setMenuItems).catch(() => { }).finally(() => setMenuLoading(false));
@@ -47,6 +68,25 @@ export default function AdminDashboard() {
       setIsOpen(res.isOpen);
     } catch { } // error handling
     setLoadingToggle(false);
+  };
+
+  const handleSaveSchedule = async (e) => {
+    if (e) e.preventDefault();
+    setScheduleSaving(true);
+    setScheduleMsg("");
+    try {
+      const res = await api.updateKitchenSettings(admin.kitchenId, scheduleForm);
+      setKitchenDoc(res.kitchen);
+      setScheduleMsg("✅ Operating hours and schedule updated successfully!");
+      setTimeout(() => {
+        setShowScheduleModal(false);
+        setScheduleMsg("");
+      }, 1200);
+    } catch (err) {
+      setScheduleMsg(`⚠️ ${err.message || "Failed to update schedule"}`);
+    } finally {
+      setScheduleSaving(false);
+    }
   };
 
   if (!admin) return null;
@@ -88,11 +128,175 @@ export default function AdminDashboard() {
             <h2 style={{ fontSize: "clamp(17px, 3vw, 20px)", fontWeight: "900", color: "#fff", margin: "0 0 6px 0" }}>🍳 Kitchen Dashboard</h2>
             <p style={{ fontSize: "13px", color: "#888", margin: 0 }}>Welcome back, <strong style={{ color: "#F5A623" }}>{admin.username}</strong> · {admin.kitchenName}</p>
           </div>
-          <div onClick={handleToggle} style={{ backgroundColor: isOpen ? "#27ae60" : "#e53e3e", borderRadius: "20px", padding: "6px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loadingToggle ? 0.6 : 1 }}>
-            <span style={{ fontSize: "11px", fontWeight: "800", color: "#fff" }}>{isOpen ? "🟢 ONLINE" : "🔴 OFFLINE"}</span>
-            <span style={{ fontSize: "9px", opacity: 0.8 }}>| Toggle</span>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+            <button
+              type="button"
+              onClick={() => setShowScheduleModal(true)}
+              style={{
+                backgroundColor: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)",
+                borderRadius: "20px",
+                padding: "6px 14px",
+                color: "#fff",
+                fontSize: "11px",
+                fontWeight: "800",
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "5px",
+              }}
+            >
+              🕒 Hours & Schedule
+            </button>
+            <div onClick={handleToggle} style={{ backgroundColor: isOpen ? "#27ae60" : "#e53e3e", borderRadius: "20px", padding: "6px 16px", cursor: "pointer", display: "flex", alignItems: "center", gap: "6px", opacity: loadingToggle ? 0.6 : 1 }}>
+              <span style={{ fontSize: "11px", fontWeight: "800", color: "#fff" }}>{isOpen ? "🟢 ONLINE" : "🔴 OFFLINE"}</span>
+              <span style={{ fontSize: "9px", opacity: 0.8 }}>| Toggle</span>
+            </div>
           </div>
         </div>
+
+        {/* Schedule & Operating Hours Modal */}
+        {showScheduleModal && (
+          <div style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(0,0,0,0.75)",
+            backdropFilter: "blur(4px)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 9999,
+            padding: "16px",
+          }}>
+            <div style={{
+              backgroundColor: "#0f0f1a",
+              border: "1.5px solid #F5A623",
+              borderRadius: "20px",
+              padding: "24px",
+              maxWidth: "460px",
+              width: "100%",
+              color: "#fff",
+              boxShadow: "0 20px 50px rgba(0,0,0,0.6)",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                <h3 style={{ margin: 0, color: "#F5A623", fontSize: "18px" }}>
+                  🕒 Operating Hours & Schedule
+                </h3>
+                <button
+                  type="button"
+                  onClick={() => setShowScheduleModal(false)}
+                  style={{ background: "none", border: "none", color: "#888", fontSize: "18px", cursor: "pointer" }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#94a3b8", lineHeight: 1.5 }}>
+                Configure overnight shifts (e.g. 22:00 to 06:00). When the kitchen is closed, customers can place pre-orders if pre-order is enabled.
+              </p>
+
+              {scheduleMsg && (
+                <div style={{
+                  padding: "10px",
+                  borderRadius: "8px",
+                  backgroundColor: scheduleMsg.startsWith("✅") ? "rgba(39,174,96,0.15)" : "rgba(229,62,62,0.15)",
+                  color: scheduleMsg.startsWith("✅") ? "#2ecc71" : "#e74c3c",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                  marginBottom: "14px",
+                }}>
+                  {scheduleMsg}
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSchedule} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: "800", color: "#cbd5e1", marginBottom: "6px" }}>
+                      OPENING TIME (HH:MM)
+                    </label>
+                    <input
+                      type="time"
+                      value={scheduleForm.opening_time}
+                      onChange={(e) => setScheduleForm(prev => ({ ...prev, opening_time: e.target.value }))}
+                      style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", background: "#1e293b", color: "#fff", boxSizing: "border-box" }}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: "800", color: "#cbd5e1", marginBottom: "6px" }}>
+                      CLOSING TIME (HH:MM)
+                    </label>
+                    <input
+                      type="time"
+                      value={scheduleForm.closing_time}
+                      onChange={(e) => setScheduleForm(prev => ({ ...prev, closing_time: e.target.value }))}
+                      style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", background: "#1e293b", color: "#fff", boxSizing: "border-box" }}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: "block", fontSize: "11px", fontWeight: "800", color: "#cbd5e1", marginBottom: "6px" }}>
+                    PREPARATION LEAD TIME (MINUTES)
+                  </label>
+                  <input
+                    type="number"
+                    min={5}
+                    max={120}
+                    value={scheduleForm.prep_lead_time_minutes}
+                    onChange={(e) => setScheduleForm(prev => ({ ...prev, prep_lead_time_minutes: parseInt(e.target.value) || 20 }))}
+                    style={{ width: "100%", padding: "10px", borderRadius: "8px", border: "1px solid #334155", background: "#1e293b", color: "#fff", boxSizing: "border-box" }}
+                  />
+                  <span style={{ fontSize: "10px", color: "#94a3b8" }}>
+                    Kitchen order alerts will fire this many minutes prior to scheduled pre-order delivery.
+                  </span>
+                </div>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "4px" }}>
+                  <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer" }}>
+                    <input
+                      type="checkbox"
+                      checked={scheduleForm.preorder_enabled}
+                      onChange={(e) => setScheduleForm(prev => ({ ...prev, preorder_enabled: e.target.checked }))}
+                    />
+                    <span>🌙 Allow Customer Pre-orders when kitchen is closed</span>
+                  </label>
+
+                  <label style={{ display: "flex", alignItems: "center", gap: "10px", fontSize: "13px", cursor: "pointer", color: "#f87171" }}>
+                    <input
+                      type="checkbox"
+                      checked={scheduleForm.is_temporarily_closed}
+                      onChange={(e) => setScheduleForm(prev => ({ ...prev, is_temporarily_closed: e.target.checked }))}
+                    />
+                    <span>⏸️ Temporarily Closed (Kitchen Emergency / Pause all orders)</span>
+                  </label>
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", marginTop: "12px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowScheduleModal(false)}
+                    style={{ flex: 1, padding: "10px", borderRadius: "8px", background: "transparent", border: "1px solid #334155", color: "#cbd5e1", cursor: "pointer" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={scheduleSaving}
+                    style={{ flex: 2, padding: "10px", borderRadius: "8px", background: "#F5A623", border: "none", color: "#111", fontWeight: "800", cursor: "pointer" }}
+                  >
+                    {scheduleSaving ? "Saving..." : "Save Settings"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 140px), 1fr))", gap: "16px" }}>

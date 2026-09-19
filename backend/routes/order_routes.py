@@ -1,10 +1,27 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app, send_from_directory, Response
 from bson import ObjectId
-from database.db import orders_collection, delivery_partners_collection
-from models.order_model import create_order, format_order, validate_order, get_next_status, is_valid_transition
+import os
+import base64
+from database.db import orders_collection, delivery_partners_collection, kitchens_collection, menu_collection, coupons_collection
+from models.order_model import (
+    create_order, format_order, validate_order, get_next_status, is_valid_transition,
+    validate_coordinates, KITCHEN_COORDINATES, DEFAULT_KITCHEN_COORDS, calculate_distance
+)
+from models.kitchen_model import get_kitchen_business_status, validate_scheduled_time
 from utils.helpers import require_auth, require_role
 from datetime import datetime
-from services.notification_service import notify_order_placed, notify_order_status, notify_kitchen_new_order
+from services.notification_service import (
+    notify_order_placed,
+    notify_order_status,
+    notify_kitchen_new_order,
+    notify_preorder_accepted,
+    notify_order_preparing,
+    notify_order_ready,
+    notify_rider_picked_up,
+    notify_out_for_delivery,
+    notify_order_delivered,
+    dispatch_order_notification,
+)
 
 order_routes = Blueprint("order_routes", __name__)
 
@@ -32,6 +49,12 @@ def create():
     payment_method = data.get("paymentMethod") or data.get("payment_method") or "COD"
     coupon_code = (data.get("couponCode") or data.get("coupon_code") or "").strip().upper()
 
+    order_type = (data.get("orderType") or data.get("order_type") or "IMMEDIATE").strip().upper()
+    scheduled_for = data.get("scheduledFor") or data.get("scheduled_for")
+    delivery_instructions = data.get("deliveryInstructions") or data.get("delivery_instructions")
+    food_instructions = data.get("foodInstructions") or data.get("food_instructions")
+    customer_location = data.get("customerLocation") or data.get("customer_location")
+
     user_info = {
         "id":     payload.get("id"),
         "name":   payload.get("name") or data.get("user", {}).get("name", "Customer"),
@@ -47,13 +70,29 @@ def create():
     if not kitchen_id:
         return jsonify({"error": "Kitchen ID is required"}), 400
 
-    # 2. Verify Kitchen exists and is OPEN
-    from database.db import kitchens_collection, menu_collection, coupons_collection
+    # 2. Verify Kitchen exists and check operating schedule / preorder eligibility
     kitchen = kitchens_collection.find_one({"kitchen_id": kitchen_id})
     if not kitchen:
         return jsonify({"error": "Kitchen not found"}), 404
-    if not kitchen.get("is_open", True):
-        return jsonify({"error": f"'{kitchen.get('kitchen_name', 'Kitchen')}' is currently closed and not accepting orders."}), 400
+
+    kitchen_status = get_kitchen_business_status(kitchen)
+
+    if order_type == "PREORDER":
+        is_valid_sched, sched_err, sched_dt = validate_scheduled_time(kitchen, scheduled_for)
+        if not is_valid_sched:
+            return jsonify({"error": sched_err}), 400
+        scheduled_for = sched_dt.isoformat()
+    else:
+        # IMMEDIATE order
+        if not kitchen_status.get("canOrderNow"):
+            if kitchen_status.get("canPreorder"):
+                return jsonify({
+                    "error": f"'{kitchen.get('kitchen_name', 'Kitchen')}' is currently closed for immediate orders. You can schedule a pre-order for {kitchen_status.get('nextOpening', 'the upcoming shift')}."
+                }), 400
+            else:
+                return jsonify({
+                    "error": f"'{kitchen.get('kitchen_name', 'Kitchen')}' is currently closed and not accepting orders."
+                }), 400
 
     # 3. Server-side Price & Availability Verification
     verified_items = []
@@ -105,24 +144,46 @@ def create():
 
     final_total = round(max(0.0, subtotal - discount_amount), 2)
 
-    # 5. Create Order
-    order = create_order(user_info, kitchen_id, verified_items, final_total, address)
+    # 5. Create Order with Location, Instructions, and Preorder fields
+    order = create_order(
+        user_info, kitchen_id, verified_items, final_total, address,
+        customer_location=customer_location,
+        delivery_instructions=delivery_instructions,
+        food_instructions=food_instructions,
+        order_type=order_type,
+        scheduled_for=scheduled_for,
+    )
     result = orders_collection.insert_one(order)
     created = orders_collection.find_one({"_id": result.inserted_id})
 
-    # 6. Send notifications
+    # 6. Send notifications & socket event
     try:
-        notify_order_placed(user_info.get("mobile", ""), user_info.get("name", "Customer"), str(result.inserted_id), final_total)
-        notify_kitchen_new_order(kitchen_id, str(result.inserted_id), len(verified_items), final_total)
-        from flask import current_app
+        notify_order_placed(
+            user_info.get("mobile", ""),
+            user_info.get("name", "Customer"),
+            str(result.inserted_id),
+            final_total,
+            is_preorder=(order_type == "PREORDER"),
+            scheduled_time_str=scheduled_for,
+            user_id=payload.get("id"),
+        )
+        notify_kitchen_new_order(
+            kitchen_id,
+            str(result.inserted_id),
+            len(verified_items),
+            final_total,
+            is_preorder=(order_type == "PREORDER"),
+            scheduled_time=scheduled_for,
+        )
         emit_fn = getattr(current_app, "emit_order_update", None)
         if emit_fn:
-            emit_fn(str(result.inserted_id), "ORDER_PLACED", kitchen_id)
+            initial_event = "SCHEDULED" if order_type == "PREORDER" else "ORDER_PLACED"
+            emit_fn(str(result.inserted_id), initial_event, kitchen_id)
     except Exception:
         pass
 
     return jsonify({
-        "message": "Order placed successfully",
+        "message": "Preorder scheduled successfully" if order_type == "PREORDER" else "Order placed successfully",
         "order": format_order(created)
     }), 201
 
@@ -219,6 +280,9 @@ def update_status(order_id):
         }), 400
 
     update_doc = {"status": new_status, "updatedAt": datetime.utcnow().isoformat()}
+    if order.get("order_type") == "PREORDER" and new_status in ["PREPARING", "READY"]:
+        update_doc["preorder_status"] = "ACTIVE"
+
     orders_collection.update_one(
         {"_id": ObjectId(order_id)},
         {"$set": update_doc}
@@ -236,15 +300,24 @@ def update_status(order_id):
     except Exception:
         pass  # non-critical — don't fail the request
 
-    # Send SMS/Email notification
+    # Send notifications (FCM Push + In-App History + SMS)
     try:
         order_user = updated.get("user", {})
-        notify_order_status(
-            order_user.get("mobile", ""),
-            order_user.get("name", "Customer"),
-            order_id,
-            new_status
-        )
+        c_mobile = order_user.get("mobile", "")
+        c_name = order_user.get("name", "Customer")
+        c_id = order_user.get("id") or str(order_user.get("_id") or "")
+
+        if new_status == "ACCEPTED":
+            if updated.get("order_type") == "PREORDER":
+                notify_preorder_accepted(c_mobile, c_name, order_id, updated.get("scheduled_for", ""), user_id=c_id)
+            else:
+                notify_order_status(c_mobile, c_name, order_id, new_status)
+        elif new_status == "PREPARING":
+            notify_order_preparing(c_mobile, c_name, order_id, user_id=c_id)
+        elif new_status == "READY":
+            notify_order_ready(c_mobile, c_name, order_id, user_id=c_id)
+        else:
+            notify_order_status(c_mobile, c_name, order_id, new_status)
     except Exception:
         pass  # non-critical
 
@@ -404,6 +477,13 @@ def update_delivery_status(order_id):
             "tracking.started_at": now,
         })
     elif new_status == "DELIVERED":
+        # Mandatory delivery proof check
+        proof = order.get("delivery_proof")
+        if not proof or not proof.get("photo_url"):
+            return jsonify({
+                "error": "Delivery proof photo is mandatory before marking order as DELIVERED. Please capture and upload delivery proof photo first."
+            }), 400
+
         expected_otp = str(order.get("otp") or "").strip()
         provided_otp = str(data.get("otp") or data.get("deliveryOtp") or "").strip()
         if expected_otp and provided_otp != expected_otp:
@@ -443,19 +523,152 @@ def update_delivery_status(order_id):
     except Exception:
         pass
 
-    # Send SMS/Email notification
+    # Send notifications (FCM push + in-app history + SMS)
     try:
         order_user = updated.get("user", {})
-        notify_order_status(
-            order_user.get("mobile", ""),
-            order_user.get("name", "Customer"),
-            order_id,
-            new_status
-        )
+        c_mobile = order_user.get("mobile", "")
+        c_name = order_user.get("name", "Customer")
+        c_id = order_user.get("id") or str(order_user.get("_id") or "")
+        rider_name = payload.get("name", "Delivery Partner")
+
+        if new_status == "PICKED_UP":
+            notify_rider_picked_up(c_mobile, c_name, order_id, rider_name=rider_name, user_id=c_id)
+        elif new_status == "OUT_FOR_DELIVERY":
+            notify_out_for_delivery(c_mobile, c_name, order_id, rider_name=rider_name, user_id=c_id)
+        elif new_status == "DELIVERED":
+            notify_order_delivered(c_mobile, c_name, order_id, user_id=c_id)
+        else:
+            notify_order_status(c_mobile, c_name, order_id, new_status)
     except Exception:
         pass
 
     return jsonify({"message": "Delivery status updated", "order": format_order(updated)}), 200
+
+
+# ─────────────────────────────────────────
+# 📸 UPLOAD DELIVERY PROOF PHOTO
+# POST /api/orders/<order_id>/delivery-proof
+# Called from DeliveryPartnerDashboard.jsx
+# ─────────────────────────────────────────
+@order_routes.route("/<order_id>/delivery-proof", methods=["POST"])
+def upload_delivery_proof(order_id):
+    payload, err = require_role(request, "delivery_partner")
+    if err:
+        return jsonify(err[0]), err[1]
+
+    try:
+        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+    except Exception:
+        return jsonify({"error": "Invalid order ID"}), 400
+
+    if not order:
+        return jsonify({"error": "Order not found"}), 404
+
+    assigned_id = order.get("delivery_assignment", {}).get("partner_id")
+    if assigned_id != payload.get("id"):
+        return jsonify({"error": "You can only upload delivery proof for your assigned order"}), 403
+
+    photo_data_b64 = None
+    file_bytes = None
+    filename = None
+
+    if "photo" in request.files:
+        file = request.files["photo"]
+        if file.filename:
+            file_bytes = file.read()
+            ext = os.path.splitext(file.filename)[1].lower() or ".jpg"
+            filename = f"proof_{order_id}_{int(datetime.utcnow().timestamp())}{ext}"
+            photo_data_b64 = f"data:image/jpeg;base64,{base64.b64encode(file_bytes).decode('utf-8')}"
+    elif request.is_json:
+        data = request.json or {}
+        raw_b64 = data.get("photo_data") or data.get("photo")
+        if raw_b64:
+            photo_data_b64 = raw_b64
+            if "base64," in raw_b64:
+                _, encoded = raw_b64.split("base64,", 1)
+                file_bytes = base64.b64decode(encoded)
+            else:
+                file_bytes = base64.b64decode(raw_b64)
+            filename = f"proof_{order_id}_{int(datetime.utcnow().timestamp())}.jpg"
+
+    if not file_bytes:
+        return jsonify({"error": "Photo file or base64 photo data is required"}), 400
+
+    # Save to disk if upload folder configured
+    upload_folder = current_app.config.get("UPLOAD_FOLDER")
+    if upload_folder:
+        proofs_dir = os.path.join(upload_folder, "delivery_proofs")
+        os.makedirs(proofs_dir, exist_ok=True)
+        filepath = os.path.join(proofs_dir, filename)
+        with open(filepath, "wb") as f:
+            f.write(file_bytes)
+
+    now = datetime.utcnow().isoformat()
+    proof_doc = {
+        "photo_url": f"/api/orders/{order_id}/delivery-proof-image",
+        "filename": filename,
+        "photo_data": photo_data_b64,
+        "captured_at": now,
+        "uploaded_by": payload.get("id"),
+        "delivery_partner_name": payload.get("name", "Delivery Partner"),
+        "notes": (request.form.get("notes") if "photo" in request.files else (request.json.get("notes") if request.is_json else "")) or ""
+    }
+
+    orders_collection.update_one(
+        {"_id": ObjectId(order_id)},
+        {"$set": {"delivery_proof": proof_doc, "updatedAt": now}}
+    )
+
+    # Emit real-time notification
+    try:
+        emit_fn = getattr(current_app, "emit_order_update", None)
+        if emit_fn:
+            emit_fn(order_id, "DELIVERY_PROOF_UPLOADED", order.get("kitchen_id"))
+    except Exception:
+        pass
+
+    return jsonify({
+        "message": "Delivery proof photo uploaded successfully",
+        "delivery_proof": {
+            "photo_url": f"/api/orders/{order_id}/delivery-proof-image",
+            "captured_at": now,
+            "filename": filename,
+        }
+    }), 200
+
+
+@order_routes.route("/<order_id>/delivery-proof-image", methods=["GET"])
+def get_delivery_proof_image(order_id):
+    try:
+        order = orders_collection.find_one({"_id": ObjectId(order_id)})
+    except Exception:
+        return jsonify({"error": "Invalid order ID"}), 400
+
+    if not order or not order.get("delivery_proof"):
+        return jsonify({"error": "Delivery proof not found"}), 404
+
+    proof = order["delivery_proof"]
+    filename = proof.get("filename")
+
+    # Try serving from disk first
+    upload_folder = current_app.config.get("UPLOAD_FOLDER")
+    if upload_folder and filename:
+        proofs_dir = os.path.join(upload_folder, "delivery_proofs")
+        filepath = os.path.join(proofs_dir, filename)
+        if os.path.exists(filepath):
+            return send_from_directory(proofs_dir, filename)
+
+    # Fallback to serving stored base64
+    photo_data = proof.get("photo_data")
+    if photo_data:
+        if "base64," in photo_data:
+            _, encoded = photo_data.split("base64,", 1)
+            raw_bytes = base64.b64decode(encoded)
+        else:
+            raw_bytes = base64.b64decode(photo_data)
+        return Response(raw_bytes, mimetype="image/jpeg")
+
+    return jsonify({"error": "Image data unavailable"}), 404
 
 
 # ─────────────────────────────────────────
@@ -515,13 +728,17 @@ def get_order_tracking(order_id):
     kitchen_lat = tracking.get("kitchen_lat", kitchen_coords["lat"])
     kitchen_lng = tracking.get("kitchen_lng", kitchen_coords["lng"])
 
-    if "customer_lat" not in tracking or "customer_lng" not in tracking:
+    # Customer location from actual order customer_location if present, else fallback
+    if order.get("customer_location") and order["customer_location"].get("lat") is not None:
+        customer_lat = order["customer_location"]["lat"]
+        customer_lng = order["customer_location"]["lng"]
+    elif "customer_lat" in tracking and tracking.get("customer_lat") is not None:
+        customer_lat = tracking["customer_lat"]
+        customer_lng = tracking["customer_lng"]
+    else:
         cust_coords = get_customer_coords(order.get("address", ""), {"lat": kitchen_lat, "lng": kitchen_lng})
         customer_lat = cust_coords["lat"]
         customer_lng = cust_coords["lng"]
-    else:
-        customer_lat = tracking["customer_lat"]
-        customer_lng = tracking["customer_lng"]
 
     total_dist = round(max(1.0, calculate_distance(kitchen_lat, kitchen_lng, customer_lat, customer_lng)), 1)
     status = order.get("status", "ORDER_PLACED")
@@ -573,11 +790,28 @@ def get_order_tracking(order_id):
     rider_name = delivery_partner.get("partner_name") or "Delivery Partner"
     rider_phone = delivery_partner.get("partner_phone") or "9876543210"
 
+    proof = order.get("delivery_proof")
+    proof_data = None
+    if proof:
+        proof_data = {
+            "photo_url": proof.get("photo_url"),
+            "captured_at": proof.get("captured_at"),
+            "delivery_partner_name": proof.get("delivery_partner_name"),
+            "notes": proof.get("notes")
+        }
+
     response_payload = {
         "order_id": str(order["_id"]),
         "status": status,
+        "order_type": order.get("order_type", "IMMEDIATE"),
+        "scheduled_for": order.get("scheduled_for"),
+        "preorder_status": order.get("preorder_status"),
         "is_real_gps": bool(tracking.get("is_real_gps")),
         "last_gps_update": tracking.get("last_updated"),
+        "delivery_proof": proof_data,
+        "delivery_instructions": order.get("delivery_instructions"),
+        "food_instructions": order.get("food_instructions"),
+        "customer_location": order.get("customer_location"),
         "rider": {
             "lat": rider_lat,
             "lng": rider_lng,

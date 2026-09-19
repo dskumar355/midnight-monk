@@ -100,6 +100,42 @@ export default function AdminOrders() {
                   </div>
                 </div>
 
+                {order.order_type === "PREORDER" && (
+                  <div style={{
+                    backgroundColor: "rgba(168,85,247,0.12)",
+                    border: "1px solid rgba(168,85,247,0.3)",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    marginBottom: "10px",
+                    color: "#a855f7",
+                    fontSize: "12px",
+                    fontWeight: "800",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}>
+                    <span>🌙 PRE-ORDER SCHEDULED</span>
+                    <span style={{ fontSize: "11px", color: t.subText }}>
+                      {order.scheduled_for ? new Date(order.scheduled_for).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : "Upcoming shift"}
+                    </span>
+                  </div>
+                )}
+
+                {order.food_instructions && (
+                  <div style={{
+                    backgroundColor: "rgba(245,166,35,0.12)",
+                    border: "1.5px solid #F5A623",
+                    borderRadius: "8px",
+                    padding: "8px 12px",
+                    marginBottom: "10px",
+                    color: "#d97706",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}>
+                    🍽️ CHEF INSTRUCTIONS: <span style={{ color: t.text, fontWeight: "600" }}>{order.food_instructions}</span>
+                  </div>
+                )}
+
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
                   {order.items?.map((item, i) => (
                     <span key={i} style={{ backgroundColor: "#FFFFFF", border: "1px solid #eee", borderRadius: "6px", padding: "4px 10px", fontSize: "12px", color: t.subText }}>

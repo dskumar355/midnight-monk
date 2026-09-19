@@ -143,6 +143,57 @@ def toggle_open(kitchen_id):
     return jsonify({"message": "Status updated", "isOpen": new_status}), 200
 
 
+# ─────────────────────────────────────────
+# ⚙️ UPDATE KITCHEN SCHEDULE SETTINGS (Kitchen Admin & Master Admin)
+# PATCH /api/kitchens/<kitchen_id>/settings
+# ─────────────────────────────────────────
+@kitchen_routes.route("/<kitchen_id>/settings", methods=["PATCH"])
+def update_settings(kitchen_id):
+    payload, err = require_role(request, ["kitchen_admin", "master_admin"])
+    if err:
+        return jsonify(err[0]), err[1]
+
+    if payload.get("role") == "kitchen_admin" and payload.get("kitchenId") != kitchen_id:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    kitchen = kitchens_collection.find_one({"kitchen_id": kitchen_id})
+    if not kitchen:
+        return jsonify({"error": "Kitchen not found"}), 404
+
+    data = request.json or {}
+    update_fields = {}
+
+    if "opening_time" in data or "openingTime" in data:
+        update_fields["opening_time"] = (data.get("opening_time") or data.get("openingTime")).strip()
+    if "closing_time" in data or "closingTime" in data:
+        update_fields["closing_time"] = (data.get("closing_time") or data.get("closingTime")).strip()
+    if "preorder_enabled" in data or "preorderEnabled" in data:
+        val = data.get("preorder_enabled") if "preorder_enabled" in data else data.get("preorderEnabled")
+        update_fields["preorder_enabled"] = bool(val)
+    if "is_temporarily_closed" in data or "isTemporarilyClosed" in data:
+        val = data.get("is_temporarily_closed") if "is_temporarily_closed" in data else data.get("isTemporarilyClosed")
+        update_fields["is_temporarily_closed"] = bool(val)
+    if "prep_lead_time_minutes" in data or "prepLeadTimeMinutes" in data:
+        val = data.get("prep_lead_time_minutes") or data.get("prepLeadTimeMinutes")
+        update_fields["prep_lead_time_minutes"] = max(5, min(120, int(val)))
+    if "holiday_dates" in data or "holidayDates" in data:
+        holidays = data.get("holiday_dates") or data.get("holidayDates") or []
+        update_fields["holiday_dates"] = [str(h).strip() for h in holidays if str(h).strip()]
+
+    update_fields["updatedAt"] = datetime.utcnow().isoformat()
+
+    kitchens_collection.update_one(
+        {"kitchen_id": kitchen_id},
+        {"$set": update_fields}
+    )
+
+    updated = kitchens_collection.find_one({"kitchen_id": kitchen_id})
+    return jsonify({
+        "message": "Kitchen schedule settings updated successfully",
+        "kitchen": format_kitchen(updated)
+    }), 200
+
+
 
 # ─────────────────────────────────────────
 # 🗑️ DELETE KITCHEN (Master Admin only)

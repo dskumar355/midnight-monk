@@ -18,3 +18,4 @@ python-socketio==5.16.2
 Flask-SocketIO==5.6.1
 simple-websocket>=1.1.0
 gunicorn>=21.2.0
+firebase-admin>=6.5.0

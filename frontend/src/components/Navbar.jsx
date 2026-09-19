@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { FiUser, FiShoppingBag, FiShoppingCart, FiPackage, FiMapPin, FiChevronDown, FiMenu, FiX } from "react-icons/fi";
+import { FiUser, FiShoppingBag, FiShoppingCart, FiPackage, FiMapPin, FiChevronDown, FiMenu, FiX, FiBell } from "react-icons/fi";
 import { useTheme } from "../context/ThemeContext";
 import { useUserAuth } from "../context/UserAuthContext";
 import { useAdminAuth } from "../context/AdminAuthContext";
 import { useOrders } from "../context/OrderContext";
 import { useCart } from "../context/CartContext";
+import { api } from "../services/api";
+import { requestFcmToken } from "../services/firebase";
 
 const defaultLocations = [
   "Vadodara, Gujarat",
@@ -53,6 +55,11 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
   const [locationQuery, setLocationQuery] = useState("");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  // Notification system
+  const [notifications, setNotifications] = useState([]);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationsRef = useRef(null);
+
   const profileRef = useRef(null);
   const locationRef = useRef(null);
 
@@ -73,14 +80,56 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
   }, [selectedLocation]);
 
   useEffect(() => {
+    // Non-blocking FCM background registration for push notifications
+    if (user) {
+      requestFcmToken().catch(() => {});
+    }
+
+    const loadNotifications = () => {
+      if (user || admin) {
+        api.getNotifications(20)
+          .then((data) => {
+            if (Array.isArray(data)) setNotifications(data);
+          })
+          .catch(() => {});
+      }
+    };
+
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 15000);
+    return () => clearInterval(interval);
+  }, [user, admin]);
+
+  useEffect(() => {
     const handleClickOutside = (event) => {
       if (profileRef.current && !profileRef.current.contains(event.target)) setProfileOpen(false);
       if (locationRef.current && !locationRef.current.contains(event.target)) setLocationOpen(false);
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) setNotificationsOpen(false);
     };
 
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const unreadCount = notifications.filter(n => !n.is_read).length;
+
+  const handleNotificationClick = async (notif) => {
+    try {
+      await api.markNotificationRead(notif.id);
+      setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
+    } catch {}
+    setNotificationsOpen(false);
+    if (notif.order_id) {
+      navigate(`/track/${notif.order_id}`);
+    }
+  };
+
+  const handleMarkAllNotificationsRead = async () => {
+    try {
+      await api.markAllNotificationsRead();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch {}
+  };
 
   const handleLogout = () => {
     if (onLogout) return onLogout();
@@ -469,6 +518,123 @@ export default function Navbar({ title, backPath, backLabel, onLogout, rightCont
                         </span>
                       )}
                     </button>
+
+                    {/* 🔔 Notifications Bell */}
+                    <div ref={notificationsRef} style={{ position: "relative" }}>
+                      <button
+                        onClick={() => setNotificationsOpen(!notificationsOpen)}
+                        style={{
+                          background: notificationsOpen ? (t.accentSoft || "rgba(201,120,62,0.15)") : "transparent",
+                          border: `1px solid ${notificationsOpen ? (t.accent || "#C9783E") : t.border}`,
+                          borderRadius: "10px",
+                          color: t.text,
+                          padding: isScrolled ? "8px 10px" : "10px 12px",
+                          fontSize: "12px",
+                          fontWeight: "800",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          cursor: "pointer",
+                          transition: "all 0.25s ease",
+                          position: "relative",
+                        }}
+                        title="Notifications"
+                      >
+                        <FiBell size={14} />
+                        {unreadCount > 0 && (
+                          <span
+                            style={{
+                              minWidth: "16px",
+                              height: "16px",
+                              borderRadius: "999px",
+                              background: "#ef4444",
+                              color: "#fff",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "9px",
+                              fontWeight: "800",
+                              padding: "0 4px",
+                            }}
+                          >
+                            {unreadCount}
+                          </span>
+                        )}
+                      </button>
+
+                      {notificationsOpen && (
+                        <div
+                          style={{
+                            position: "absolute",
+                            right: 0,
+                            top: "calc(100% + 8px)",
+                            width: "320px",
+                            maxHeight: "420px",
+                            backgroundColor: t.card,
+                            border: `1px solid ${t.border}`,
+                            borderRadius: "14px",
+                            boxShadow: t.shadow,
+                            overflowY: "auto",
+                            zIndex: 140,
+                            padding: "12px",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: `1px solid ${t.border}`, paddingBottom: "8px", marginBottom: "8px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ fontSize: "14px" }}>🔔</span>
+                              <span style={{ fontSize: "13px", fontWeight: "800", color: t.text }}>Notifications</span>
+                            </div>
+                            {unreadCount > 0 && (
+                              <button
+                                onClick={handleMarkAllNotificationsRead}
+                                style={{ background: "none", border: "none", color: t.accent, fontSize: "11px", fontWeight: "700", cursor: "pointer" }}
+                              >
+                                Mark all read
+                              </button>
+                            )}
+                          </div>
+
+                          {notifications.length === 0 ? (
+                            <div style={{ padding: "24px 12px", textAlign: "center", color: t.mutedText, fontSize: "12px" }}>
+                              No notifications yet. You'll receive real-time updates as your orders progress!
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                              {notifications.map((n) => (
+                                <div
+                                  key={n.id}
+                                  onClick={() => handleNotificationClick(n)}
+                                  style={{
+                                    padding: "10px",
+                                    borderRadius: "8px",
+                                    backgroundColor: n.is_read ? "transparent" : (t.bgSoft || "rgba(201,120,62,0.08)"),
+                                    border: `1px solid ${n.is_read ? (t.border || "#eee") : (t.accent || "#C9783E")}`,
+                                    cursor: "pointer",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "2px" }}>
+                                    <div style={{ fontSize: "12px", fontWeight: "800", color: t.text }}>
+                                      {n.title}
+                                    </div>
+                                    {!n.is_read && (
+                                      <span style={{ width: "6px", height: "6px", borderRadius: "50%", backgroundColor: "#ef4444", marginTop: "4px" }} />
+                                    )}
+                                  </div>
+                                  <p style={{ margin: "2px 0 4px 0", fontSize: "11px", color: t.subText, lineHeight: 1.4 }}>
+                                    {n.message}
+                                  </p>
+                                  <div style={{ fontSize: "10px", color: t.mutedText }}>
+                                    {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    {n.order_id && " · Click to track order →"}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
 
                     <div ref={profileRef} style={{ position: "relative" }}>
                       <button

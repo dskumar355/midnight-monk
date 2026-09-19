@@ -212,6 +212,65 @@ export default function DeliveryPartnerDashboard() {
     updatePartner({ ...partner, ...res.partner });
   };
 
+  // Mandatory delivery proof photo state
+  const [proofImage, setProofImage] = useState(null);
+  const [proofUploaded, setProofUploaded] = useState(false);
+  const [uploadingProof, setUploadingProof] = useState(false);
+  const [proofNotes, setProofNotes] = useState("");
+  const fileInputRef = useRef(null);
+
+  const handlePhotoCapture = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const img = new Image();
+      img.onload = () => {
+        // Canvas compression: max 1200px dimension and 80% JPEG quality
+        const canvas = document.createElement("canvas");
+        const MAX_DIM = 1200;
+        let { width, height } = img;
+
+        if (width > height && width > MAX_DIM) {
+          height = Math.round((height * MAX_DIM) / width);
+          width = MAX_DIM;
+        } else if (height > MAX_DIM) {
+          width = Math.round((width * MAX_DIM) / height);
+          height = MAX_DIM;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+
+        const compressedBase64 = canvas.toDataURL("image/jpeg", 0.8);
+        setProofImage(compressedBase64);
+        setProofUploaded(false);
+      };
+      img.src = event.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleUploadProofPhoto = async () => {
+    if (!otpModalOrder || !proofImage) return;
+    setUploadingProof(true);
+    setActionError("");
+    try {
+      await api.uploadDeliveryProof(otpModalOrder.id, {
+        photo_data: proofImage,
+        notes: proofNotes.trim(),
+      });
+      setProofUploaded(true);
+    } catch (err) {
+      setActionError(err.message || "Failed to upload delivery proof photo");
+    } finally {
+      setUploadingProof(false);
+    }
+  };
+
   const handleAction = async (order) => {
     const action = ACTIONS[order.status];
     if (!action) return;
@@ -220,6 +279,9 @@ export default function DeliveryPartnerDashboard() {
     if (action.next === "DELIVERED") {
       setOtpModalOrder(order);
       setOtpInput("");
+      setProofImage(order.delivery_proof?.photo_url || null);
+      setProofUploaded(Boolean(order.delivery_proof?.photo_url));
+      setProofNotes(order.delivery_proof?.notes || "");
       return;
     }
 
@@ -241,6 +303,12 @@ export default function DeliveryPartnerDashboard() {
   const handleConfirmDelivery = async (e) => {
     if (e) e.preventDefault();
     if (!otpModalOrder) return;
+
+    if (!proofUploaded) {
+      setActionError("⚠️ Delivery proof photo is mandatory! Please capture and confirm proof photo first.");
+      return;
+    }
+
     if (!otpInput.trim()) {
       setActionError("Please enter the 4-digit Delivery OTP from customer");
       return;
@@ -260,6 +328,9 @@ export default function DeliveryPartnerDashboard() {
       } else {
         setOtpModalOrder(null);
         setOtpInput("");
+        setProofImage(null);
+        setProofUploaded(false);
+        setProofNotes("");
         await load(true);
       }
     } catch (err) {
@@ -395,9 +466,42 @@ export default function DeliveryPartnerDashboard() {
             return (
               <div key={order.id} style={S.orderCard}>
                 <div style={S.row}><strong>#{order.id.slice(-8).toUpperCase()}</strong><span style={S.badge}>{order.status}</span></div>
+
+                {order.order_type === "PREORDER" && (
+                  <div style={{
+                    background: "rgba(168, 85, 247, 0.15)",
+                    border: "1px solid rgba(168, 85, 247, 0.4)",
+                    borderRadius: "8px",
+                    padding: "6px 10px",
+                    margin: "8px 0",
+                    color: "#c084fc",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}>
+                    🌙 PRE-ORDER · Scheduled for: {order.scheduled_for ? new Date(order.scheduled_for).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", dateStyle: "medium", timeStyle: "short" }) : "Upcoming shift"}
+                  </div>
+                )}
+
                 <p style={S.meta}>{order.user?.name} · {order.user?.mobile || "No phone"}</p>
                 <p style={S.meta}>Kitchen: {order.kitchenId}</p>
                 <p style={S.meta}>Address: {order.address}</p>
+
+                {order.delivery_instructions && (
+                  <div style={{
+                    background: "rgba(56, 189, 248, 0.12)",
+                    border: "1.5px solid rgba(56, 189, 248, 0.4)",
+                    borderRadius: "10px",
+                    padding: "10px 12px",
+                    margin: "10px 0",
+                    color: "#38bdf8",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                  }}>
+                    🛵 DELIVERY INSTRUCTIONS:<br />
+                    <span style={{ color: "#fff", fontWeight: "600", fontSize: "13px" }}>{order.delivery_instructions}</span>
+                  </div>
+                )}
+
                 <p style={S.meta}>Payment: {order.paymentMethod} · {order.paymentStatus}</p>
                 {order.paymentMethod === "COD" && <p style={S.cod}>Collect ₹{order.cod?.amount_expected || order.total}</p>}
 
@@ -465,7 +569,7 @@ export default function DeliveryPartnerDashboard() {
         </section>
       </div>
 
-      {/* OTP Verification Modal */}
+      {/* Mandatory Delivery Proof & OTP Verification Modal */}
       {otpModalOrder && (
         <div style={{
           position: "fixed",
@@ -473,101 +577,230 @@ export default function DeliveryPartnerDashboard() {
           left: 0,
           right: 0,
           bottom: 0,
-          backgroundColor: "rgba(0,0,0,0.75)",
-          backdropFilter: "blur(4px)",
+          backgroundColor: "rgba(0,0,0,0.82)",
+          backdropFilter: "blur(6px)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           zIndex: 9999,
-          padding: "20px",
+          padding: "16px",
         }}>
           <div style={{
             backgroundColor: "#0f172a",
             border: "1.5px solid #f5a623",
             borderRadius: "20px",
-            padding: "28px",
-            maxWidth: "420px",
+            padding: "24px",
+            maxWidth: "460px",
             width: "100%",
+            maxHeight: "90vh",
+            overflowY: "auto",
             boxShadow: "0 20px 50px rgba(0,0,0,0.6)",
           }}>
-            <h3 style={{ margin: "0 0 8px 0", color: "#f5a623", fontSize: "20px" }}>🔐 Verify Customer OTP</h3>
-            <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "13px" }}>
-              Please ask customer <strong>{otpModalOrder.user?.name}</strong> for the 4-digit Delivery OTP shown on their tracking screen.
+            <h3 style={{ margin: "0 0 6px 0", color: "#f5a623", fontSize: "20px" }}>
+              📦 Complete Delivery #{otpModalOrder.id.slice(-6).toUpperCase()}
+            </h3>
+            <p style={{ margin: "0 0 16px 0", color: "#94a3b8", fontSize: "12px" }}>
+              Recipient: <strong>{otpModalOrder.user?.name}</strong> · {otpModalOrder.user?.mobile || ""}
             </p>
 
-            {otpModalOrder.paymentMethod === "COD" && (
-              <div style={{ background: "rgba(250,204,21,0.12)", border: "1px solid #facc15", borderRadius: "10px", padding: "10px 14px", color: "#fef08a", fontSize: "13px", fontWeight: "700", marginBottom: "16px" }}>
-                💵 Collect ₹{otpModalOrder.cod?.amount_expected || otpModalOrder.total} Cash on Delivery
+            {/* 📸 STEP 1: Mandatory Delivery Proof Photo */}
+            <div style={{
+              backgroundColor: "rgba(255,255,255,0.04)",
+              border: `1.5px solid ${proofUploaded ? "#22c55e" : "#f5a623"}`,
+              borderRadius: "14px",
+              padding: "14px",
+              marginBottom: "16px",
+            }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                <span style={{ fontSize: "13px", fontWeight: "800", color: proofUploaded ? "#86efac" : "#f5a623" }}>
+                  {proofUploaded ? "✅ STEP 1: Proof Photo Verified" : "📸 STEP 1: Capture Proof Photo (Mandatory)"}
+                </span>
+                {proofUploaded && (
+                  <button
+                    type="button"
+                    onClick={() => { fileInputRef.current?.click(); }}
+                    style={{ background: "transparent", border: "none", color: "#f5a623", fontSize: "11px", fontWeight: "700", cursor: "pointer" }}
+                  >
+                    Retake
+                  </button>
+                )}
               </div>
-            )}
 
-            {actionError && (
-              <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid #ef4444", borderRadius: "8px", padding: "8px 12px", color: "#fca5a5", fontSize: "12px", marginBottom: "14px" }}>
-                ⚠️ {actionError}
-              </div>
-            )}
-
-            <form onSubmit={handleConfirmDelivery}>
-              <label style={{ display: "block", color: "#cbd5e1", fontSize: "12px", fontWeight: "700", marginBottom: "6px" }}>DELIVERY OTP</label>
               <input
-                type="text"
-                maxLength={6}
-                value={otpInput}
-                onChange={(e) => setOtpInput(e.target.value)}
-                placeholder="Enter 4-digit OTP"
-                autoFocus
-                style={{
-                  width: "100%",
-                  padding: "14px",
-                  borderRadius: "12px",
-                  border: "1.5px solid rgba(148,163,184,0.3)",
-                  background: "#1e293b",
-                  color: "#fff",
-                  fontSize: "20px",
-                  letterSpacing: "6px",
-                  textAlign: "center",
-                  fontWeight: "900",
-                  outline: "none",
-                  boxSizing: "border-box",
-                  marginBottom: "20px",
-                }}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                ref={fileInputRef}
+                onChange={handlePhotoCapture}
+                style={{ display: "none" }}
               />
 
-              <div style={{ display: "flex", gap: "10px" }}>
-                <button
-                  type="button"
-                  onClick={() => { setOtpModalOrder(null); setOtpInput(""); setActionError(""); }}
-                  style={{
-                    flex: 1,
-                    background: "transparent",
-                    border: "1px solid rgba(255,255,255,0.2)",
-                    borderRadius: "10px",
-                    padding: "12px",
-                    color: "#cbd5e1",
-                    fontWeight: "700",
-                    cursor: "pointer",
-                  }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={busyId === otpModalOrder.id}
-                  style={{
-                    flex: 1,
-                    background: "#f5a623",
-                    border: "none",
-                    borderRadius: "10px",
-                    padding: "12px",
-                    color: "#111",
-                    fontWeight: "800",
-                    cursor: "pointer",
-                  }}
-                >
-                  {busyId === otpModalOrder.id ? "Verifying..." : "Verify & Complete"}
-                </button>
+              {!proofImage && !proofUploaded ? (
+                <div>
+                  <p style={{ fontSize: "12px", color: "#94a3b8", margin: "0 0 10px 0" }}>
+                    Capture a clear photo of the delivered food packet at the doorstep or handed to the customer.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      width: "100%",
+                      padding: "12px",
+                      borderRadius: "10px",
+                      border: "1.5px dashed #f5a623",
+                      backgroundColor: "rgba(245,166,35,0.1)",
+                      color: "#f5a623",
+                      fontSize: "14px",
+                      fontWeight: "800",
+                      cursor: "pointer",
+                    }}
+                  >
+                    📷 Open Camera / Take Photo
+                  </button>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ position: "relative", marginBottom: "10px" }}>
+                    <img
+                      src={proofImage}
+                      alt="Delivery Proof Preview"
+                      style={{
+                        width: "100%",
+                        height: "150px",
+                        objectFit: "cover",
+                        borderRadius: "10px",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                      }}
+                    />
+                  </div>
+
+                  {!proofUploaded ? (
+                    <div style={{ display: "flex", gap: "8px" }}>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        style={{
+                          flex: 1,
+                          padding: "8px",
+                          borderRadius: "8px",
+                          background: "transparent",
+                          border: "1px solid rgba(255,255,255,0.2)",
+                          color: "#cbd5e1",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Retake
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleUploadProofPhoto}
+                        disabled={uploadingProof}
+                        style={{
+                          flex: 2,
+                          padding: "8px",
+                          borderRadius: "8px",
+                          background: "#22c55e",
+                          border: "none",
+                          color: "#000",
+                          fontSize: "12px",
+                          fontWeight: "800",
+                          cursor: "pointer",
+                        }}
+                      >
+                        {uploadingProof ? "Uploading..." : "✓ Confirm & Upload Photo"}
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: "11px", color: "#86efac", fontWeight: "700" }}>
+                      Photo successfully saved and linked to order proof.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* 🔐 STEP 2: Customer OTP & Cash Collection */}
+            <div style={{ opacity: proofUploaded ? 1 : 0.45 }}>
+              <div style={{ fontSize: "13px", fontWeight: "800", color: "#cbd5e1", marginBottom: "8px" }}>
+                🔐 STEP 2: Verify 4-digit Customer OTP
               </div>
-            </form>
+
+              {otpModalOrder.paymentMethod === "COD" && (
+                <div style={{ background: "rgba(250,204,21,0.12)", border: "1px solid #facc15", borderRadius: "10px", padding: "10px 14px", color: "#fef08a", fontSize: "13px", fontWeight: "700", marginBottom: "14px" }}>
+                  💵 Collect ₹{otpModalOrder.cod?.amount_expected || otpModalOrder.total} Cash on Delivery
+                </div>
+              )}
+
+              {actionError && (
+                <div style={{ background: "rgba(239,68,68,0.15)", border: "1px solid #ef4444", borderRadius: "8px", padding: "8px 12px", color: "#fca5a5", fontSize: "12px", marginBottom: "14px" }}>
+                  ⚠️ {actionError}
+                </div>
+              )}
+
+              <form onSubmit={handleConfirmDelivery}>
+                <label style={{ display: "block", color: "#cbd5e1", fontSize: "11px", fontWeight: "700", marginBottom: "6px" }}>CUSTOMER OTP</label>
+                <input
+                  type="text"
+                  maxLength={6}
+                  value={otpInput}
+                  disabled={!proofUploaded}
+                  onChange={(e) => setOtpInput(e.target.value)}
+                  placeholder={proofUploaded ? "Enter 4-digit OTP" : "Upload photo first"}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    borderRadius: "10px",
+                    border: "1.5px solid rgba(148,163,184,0.3)",
+                    background: "#1e293b",
+                    color: "#fff",
+                    fontSize: "20px",
+                    letterSpacing: "6px",
+                    textAlign: "center",
+                    fontWeight: "900",
+                    outline: "none",
+                    boxSizing: "border-box",
+                    marginBottom: "16px",
+                  }}
+                />
+
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => { setOtpModalOrder(null); setOtpInput(""); setActionError(""); setProofImage(null); setProofUploaded(false); }}
+                    style={{
+                      flex: 1,
+                      background: "transparent",
+                      border: "1px solid rgba(255,255,255,0.2)",
+                      borderRadius: "10px",
+                      padding: "12px",
+                      color: "#cbd5e1",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={busyId === otpModalOrder.id || !proofUploaded}
+                    style={{
+                      flex: 1,
+                      background: proofUploaded ? "#f5a623" : "#64748b",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "12px",
+                      color: proofUploaded ? "#111" : "#94a3b8",
+                      fontWeight: "800",
+                      cursor: proofUploaded ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    {busyId === otpModalOrder.id ? "Verifying..." : "Verify & Complete"}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}

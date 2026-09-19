@@ -10,60 +10,96 @@ DEFAULT_KITCHEN_COORDS = {"lat": 22.3100, "lng": 73.1750, "name": "Midnight Monk
 
 
 def calculate_distance(lat1, lon1, lat2, lon2):
-    """Approximate distance in km using haversine formula"""
-    R = 6371.0
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
-    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
-    return R * c
+    """Approximate distance in km using haversine formula."""
+    try:
+        R = 6371.0
+        dlat = math.radians(float(lat2) - float(lat1))
+        dlon = math.radians(float(lon2) - float(lon1))
+        a = math.sin(dlat / 2)**2 + math.cos(math.radians(float(lat1))) * math.cos(math.radians(float(lat2))) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return R * c
+    except Exception:
+        return 2.5
 
 
-def get_customer_coords(address, kitchen_coord):
-    """Deterministically generate customer coordinates near kitchen based on address"""
-    h = sum(ord(c) for c in (address or "Midnight Monk Delivery Address"))
-    offset_lat = (((h * 13) % 41) - 20) * 0.0008
-    offset_lng = (((h * 17) % 43) - 21) * 0.0009
-    if abs(offset_lat) < 0.004:
-        offset_lat = 0.010 if offset_lat >= 0 else -0.010
-    if abs(offset_lng) < 0.004:
-        offset_lng = 0.012 if offset_lng >= 0 else -0.012
-    return {
-        "lat": round(kitchen_coord["lat"] + offset_lat, 6),
-        "lng": round(kitchen_coord["lng"] + offset_lng, 6)
-    }
+def validate_coordinates(lat, lng):
+    """Validate latitude and longitude ranges."""
+    try:
+        lat_f = float(lat)
+        lng_f = float(lng)
+        if -90.0 <= lat_f <= 90.0 and -180.0 <= lng_f <= 180.0:
+            return True, lat_f, lng_f
+        return False, None, None
+    except (ValueError, TypeError):
+        return False, None, None
 
 
 def generate_otp():
-    """Generate a 4-digit delivery OTP"""
+    """Generate a 4-digit delivery OTP."""
     return random.randint(1000, 9999)
 
 
-def create_order(user, kitchen_id, items, total, address):
+def create_order(user, kitchen_id, items, total, address,
+                 customer_location=None, delivery_instructions=None, food_instructions=None,
+                 order_type="IMMEDIATE", scheduled_for=None):
     """
     Create a new order document for MongoDB.
-    Matches OrderContext.jsx addOrder() fields exactly.
+    Correctly persists real customer coordinates, instructions, and preorder metadata.
     """
     user = user or {"name": "Guest Customer", "mobile": ""}
     payment_method = (user.get("paymentMethod") or "COD").strip().upper()
     is_cod = payment_method == "COD"
     kitchen_coord = KITCHEN_COORDINATES.get(kitchen_id.strip(), DEFAULT_KITCHEN_COORDS)
-    cust_coord = get_customer_coords(address, kitchen_coord)
-    dist_km = round(max(1.2, calculate_distance(kitchen_coord["lat"], kitchen_coord["lng"], cust_coord["lat"], cust_coord["lng"])), 1)
-    eta_mins = random.choice([15, 20, 25, 30])
+
+    # ── Accurate Customer Location Resolution ──
+    # If real GPS coordinates provided from browser checkout, use them directly!
+    has_real_gps = False
+    cust_lat = None
+    cust_lng = None
+    accuracy = 15.0
+
+    if customer_location and isinstance(customer_location, dict):
+        raw_lat = customer_location.get("latitude") or customer_location.get("lat")
+        raw_lng = customer_location.get("longitude") or customer_location.get("lng")
+        is_valid, val_lat, val_lng = validate_coordinates(raw_lat, raw_lng)
+        if is_valid:
+            cust_lat = round(val_lat, 6)
+            cust_lng = round(val_lng, 6)
+            accuracy = float(customer_location.get("accuracy") or 12.0)
+            has_real_gps = True
+
+    if not has_real_gps:
+        # Fallback default point near kitchen only when user denies location
+        cust_lat = round(kitchen_coord["lat"] + 0.012, 6)
+        cust_lng = round(kitchen_coord["lng"] + 0.008, 6)
+        accuracy = 100.0
+
+    dist_km = round(max(0.8, calculate_distance(kitchen_coord["lat"], kitchen_coord["lng"], cust_lat, cust_lng)), 2)
+    eta_mins = max(10, round(dist_km * 3 + 10))
+
+    is_preorder = str(order_type).upper() == "PREORDER"
+    initial_status = "SCHEDULED" if is_preorder else "ORDER_PLACED"
+
+    # Sanitized Instructions (Max 500 chars)
+    deliv_instr = str(delivery_instructions).strip()[:500] if delivery_instructions else None
+    food_instr = str(food_instructions).strip()[:500] if food_instructions else None
+
+    captured_at = customer_location.get("captured_at") if customer_location else datetime.utcnow().isoformat()
+
+    now_iso = datetime.utcnow().isoformat()
 
     return {
         # ✅ User info
         "user": {
             "name":   user.get("name", ""),
             "mobile": user.get("mobile", ""),
+            "id":     user.get("id", ""),
         },
 
         # ✅ Kitchen
         "kitchen_id": kitchen_id.strip(),
 
         # ✅ Items — array of cart items
-        # Each item: { id, name, price, quantity, kitchenId }
         "items": items,
 
         # ✅ Pricing
@@ -72,7 +108,29 @@ def create_order(user, kitchen_id, items, total, address):
         # ✅ Delivery
         "address": address.strip(),
         "otp": generate_otp(),
-        "eta_minutes": random.choice([15, 20, 25, 30]),
+        "eta_minutes": eta_mins,
+
+        # ✅ Instructions
+        "delivery_instructions": deliv_instr,
+        "food_instructions":     food_instr,
+
+        # ✅ Customer Location Metadata
+        "customer_location": {
+            "latitude": cust_lat,
+            "longitude": cust_lng,
+            "accuracy": accuracy,
+            "is_exact_gps": has_real_gps,
+            "captured_at": captured_at,
+        },
+
+        # ✅ Preorder Scheduling
+        "order_type": "PREORDER" if is_preorder else "IMMEDIATE",
+        "scheduled_for": scheduled_for if is_preorder else None,
+        "preorder_status": "SCHEDULED" if is_preorder else None,
+
+        # ✅ Delivery Proof Photo
+        "delivery_proof": None,
+
         "delivery_assignment": {
             "partner_id": None,
             "partner_name": "",
@@ -95,27 +153,29 @@ def create_order(user, kitchen_id, items, total, address):
             "collection_status": "PENDING" if is_cod else "COLLECTED",
         },
 
-        "status": "ORDER_PLACED",
+        "status": initial_status,
 
-        # ✅ Live Tracking
+        # ✅ Live Tracking with explicit separated locations
         "tracking": {
             "kitchen_lat": kitchen_coord["lat"],
             "kitchen_lng": kitchen_coord["lng"],
-            "customer_lat": cust_coord["lat"],
-            "customer_lng": cust_coord["lng"],
+            "customer_lat": cust_lat,
+            "customer_lng": cust_lng,
+            "customer_accuracy": accuracy,
             "rider_lat": kitchen_coord["lat"],
             "rider_lng": kitchen_coord["lng"],
             "rider_progress": 0.0,
             "eta_minutes": eta_mins,
             "distance_km": dist_km,
             "started_at": None,
-            "last_updated": datetime.utcnow().isoformat(),
+            "last_updated": now_iso,
+            "is_real_gps": False,
         },
 
         # ✅ Timestamps
-        "date":      datetime.utcnow().isoformat(),
-        "createdAt": datetime.utcnow().isoformat(),
-        "updatedAt": datetime.utcnow().isoformat(),
+        "date":      now_iso,
+        "createdAt": now_iso,
+        "updatedAt": now_iso,
     }
 
 
@@ -123,39 +183,63 @@ def format_order(order):
     """
     Format a MongoDB order document for API response.
     Maps to exact frontend OrderContext + Orders.jsx structure.
+    Safely handles both legacy orders and new feature fields.
     """
     if not order:
         return None
 
     partner_id = order.get("delivery_assignment", {}).get("partner_id") or ""
-    user_id = str(order.get("user", {}).get("_id") or order.get("user_id", "") or "")
+    user_id = str(order.get("user", {}).get("_id") or order.get("user", {}).get("id") or order.get("user_id", "") or "")
 
     return {
-        "id":                  str(order["_id"]),          # ✅ frontend uses order.id
-        "order_id":            str(order["_id"]),          # ✅ alias for consistency
-        "user":                order.get("user", {}),
-        "userId":              user_id,
-        "user_id":             user_id,
-        "kitchenId":           order.get("kitchen_id", ""), # ✅ frontend uses order.kitchenId
-        "kitchen_id":          order.get("kitchen_id", ""), # ✅ backend alias
-        "items":               order.get("items", []),
-        "total":               order.get("total", 0),
-        "address":             order.get("address", ""),
-        "status":              order.get("status", "ORDER_PLACED"),
-        "riderName":           order.get("delivery_assignment", {}).get("partner_name", ""),
-        "riderPhone":          order.get("delivery_assignment", {}).get("partner_phone", ""),
-        "deliveryPartnerId":   partner_id,
-        "delivery_partner_id": partner_id,
-        "otp":                 order.get("otp", 0),
-        "etaMinutes":          order.get("eta_minutes", 20),
-        "paymentMethod":       order.get("payment_method", "COD"),
-        "paymentStatus":       order.get("payment_status", "Pending"),
-        "deliveryAssignment":  order.get("delivery_assignment", {}),
-        "delivery_assignment": order.get("delivery_assignment", {}),
-        "tracking":            order.get("tracking", {}),
-        "cod":                 order.get("cod", {}),
-        "date":                order.get("date", ""),
-        "createdAt":           order.get("createdAt", ""),
+        "id":                    str(order["_id"]),
+        "order_id":              str(order["_id"]),
+        "user":                  order.get("user", {}),
+        "userId":                user_id,
+        "user_id":               user_id,
+        "kitchenId":             order.get("kitchen_id", ""),
+        "kitchen_id":            order.get("kitchen_id", ""),
+        "items":                 order.get("items", []),
+        "total":                 order.get("total", 0),
+        "address":               order.get("address", ""),
+        "status":                order.get("status", "ORDER_PLACED"),
+        "riderName":             order.get("delivery_assignment", {}).get("partner_name", ""),
+        "riderPhone":            order.get("delivery_assignment", {}).get("partner_phone", ""),
+        "deliveryPartnerId":     partner_id,
+        "delivery_partner_id":   partner_id,
+        "otp":                   order.get("otp", 0),
+        "etaMinutes":            order.get("eta_minutes", 20),
+        "paymentMethod":         order.get("payment_method", "COD"),
+        "paymentStatus":         order.get("payment_status", "Pending"),
+        "deliveryAssignment":    order.get("delivery_assignment", {}),
+        "delivery_assignment":   order.get("delivery_assignment", {}),
+        "tracking":              order.get("tracking", {}),
+        "cod":                   order.get("cod", {}),
+        "date":                  order.get("date", ""),
+        "createdAt":             order.get("createdAt", ""),
+        "updatedAt":             order.get("updatedAt", ""),
+
+        # Feature 1: Delivery Proof
+        "deliveryProof":         order.get("delivery_proof"),
+        "delivery_proof":        order.get("delivery_proof"),
+
+        # Feature 2: Customer Location
+        "customerLocation":      order.get("customer_location"),
+        "customer_location":     order.get("customer_location"),
+
+        # Feature 3: Instructions
+        "deliveryInstructions":  order.get("delivery_instructions"),
+        "delivery_instructions": order.get("delivery_instructions"),
+        "foodInstructions":      order.get("food_instructions"),
+        "food_instructions":     order.get("food_instructions"),
+
+        # Feature 4: Preorder
+        "orderType":             order.get("order_type", "IMMEDIATE"),
+        "order_type":            order.get("order_type", "IMMEDIATE"),
+        "scheduledFor":          order.get("scheduled_for"),
+        "scheduled_for":         order.get("scheduled_for"),
+        "preorderStatus":        order.get("preorder_status"),
+        "preorder_status":       order.get("preorder_status"),
     }
 
 
@@ -164,7 +248,6 @@ def validate_order(user, kitchen_id, items, total, address):
     Validate order fields before saving.
     Returns (is_valid, error_message)
     """
-    # Browsing and checkout support guests; authentication remains optional.
     if not user:
         user = {"name": "Guest Customer", "mobile": ""}
     if not user.get("name"):
@@ -186,6 +269,8 @@ def validate_order(user, kitchen_id, items, total, address):
 
 
 STATUS_FLOW = {
+    "SCHEDULED": ["READY_FOR_PREPARATION", "ACCEPTED", "CANCELLED"],
+    "READY_FOR_PREPARATION": ["ACCEPTED", "PREPARING", "CANCELLED"],
     "ORDER_PLACED": ["ACCEPTED", "CANCELLED", "PAYMENT_FAILED"],
     "ACCEPTED": ["PREPARING", "CANCELLED"],
     "PREPARING": ["READY", "CANCELLED"],

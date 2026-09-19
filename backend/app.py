@@ -12,10 +12,18 @@ from routes.rating_routes import rating_routes
 from routes.coupon_routes import coupon_routes
 from routes.payment_routes import payment_routes
 from routes.security_routes import security_routes
+from routes.notification_routes import notification_routes
 from utils.security import add_security_headers
+import os
+from flask import send_from_directory, jsonify
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Upload directory setup
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "uploads", "delivery_proofs")
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 
 # ✅ CORS — restrict to allowed origins
 CORS(app, resources={r"/api/*": {"origins": app.config.get("ALLOWED_ORIGINS", "*")}})
@@ -34,15 +42,21 @@ from utils.limiter import limiter
 limiter.init_app(app)
 
 # ✅ Register blueprints
-app.register_blueprint(auth_routes,    url_prefix="/api/auth")
-app.register_blueprint(kitchen_routes, url_prefix="/api/kitchens")
-app.register_blueprint(menu_routes,    url_prefix="/api/menu")
-app.register_blueprint(order_routes,   url_prefix="/api/orders")
-app.register_blueprint(admin_routes,   url_prefix="/api/admin")
-app.register_blueprint(rating_routes,  url_prefix="/api/ratings")
-app.register_blueprint(coupon_routes,  url_prefix="/api/coupons")
-app.register_blueprint(payment_routes, url_prefix="/api/payments")
-app.register_blueprint(security_routes, url_prefix="/api/security")
+app.register_blueprint(auth_routes,         url_prefix="/api/auth")
+app.register_blueprint(kitchen_routes,      url_prefix="/api/kitchens")
+app.register_blueprint(menu_routes,         url_prefix="/api/menu")
+app.register_blueprint(order_routes,        url_prefix="/api/orders")
+app.register_blueprint(admin_routes,        url_prefix="/api/admin")
+app.register_blueprint(rating_routes,       url_prefix="/api/ratings")
+app.register_blueprint(coupon_routes,       url_prefix="/api/coupons")
+app.register_blueprint(payment_routes,      url_prefix="/api/payments")
+app.register_blueprint(security_routes,     url_prefix="/api/security")
+app.register_blueprint(notification_routes, url_prefix="/api/notifications")
+
+# Serve uploaded delivery proof photos
+@app.route("/api/uploads/delivery_proofs/<path:filename>")
+def serve_delivery_proof(filename):
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename)
 
 @app.after_request
 def apply_security_headers(response):

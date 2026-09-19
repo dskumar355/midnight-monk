@@ -26,12 +26,24 @@ export default function Checkout() {
     }
   }, [user, cart, navigate]);
 
-  // Address
+  // Address & Location
   const [flat, setFlat]       = useState("");
   const [street, setStreet]   = useState("");
   const [city, setCity]       = useState("");
   const [pincode, setPincode] = useState("");
   const [error, setError]     = useState("");
+  const [customerLocation, setCustomerLocation] = useState(null); // { lat, lng, accuracy, method }
+  const [detectingLocation, setDetectingLocation] = useState(false);
+  const [locationStatus, setLocationStatus] = useState("");
+
+  // Special Instructions
+  const [foodInstructions, setFoodInstructions] = useState("");
+  const [deliveryInstructions, setDeliveryInstructions] = useState("");
+
+  // Kitchen schedule & Pre-order
+  const [kitchen, setKitchen] = useState(null);
+  const [orderType, setOrderType] = useState("IMMEDIATE"); // "IMMEDIATE" | "PREORDER"
+  const [scheduledFor, setScheduledFor] = useState("");
 
   // Payment
   const [paymentMethod, setPaymentMethod] = useState("cod"); // "cod" | "online"
@@ -47,7 +59,82 @@ export default function Checkout() {
   const discount = couponApplied?.discount || 0;
   const finalTotal = Math.max(0, totalPrice - discount);
 
+  const effectiveKitchenId = kitchenId || cart[0]?.kitchenId || cart[0]?.kitchen_id;
+
+  // Load Kitchen operating status & slots
+  useEffect(() => {
+    if (!effectiveKitchenId) return;
+    api.getKitchen(effectiveKitchenId)
+      .then((data) => {
+        if (data) {
+          setKitchen(data);
+          // If closed for immediate ordering but preorder is available, default to PREORDER
+          if (data.canOrderNow === false && data.canPreorder === true) {
+            setOrderType("PREORDER");
+            if (data.preorderSlots && data.preorderSlots.length > 0) {
+              setScheduledFor(data.preorderSlots[0].isoString);
+            }
+          }
+        }
+      })
+      .catch(() => {});
+  }, [effectiveKitchenId]);
+
   const handleLogout = () => { logout(); navigate("/login"); };
+
+  // ── GPS Geolocation Handler ──
+  const handleGetCurrentLocation = () => {
+    if (!navigator.geolocation) {
+      setLocationStatus("Geolocation is not supported by your browser");
+      return;
+    }
+    setDetectingLocation(true);
+    setLocationStatus("Detecting your exact GPS coordinates...");
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude, accuracy } = pos.coords;
+        setCustomerLocation({
+          lat: latitude,
+          lng: longitude,
+          accuracy: Math.round(accuracy),
+          captured_at: new Date().toISOString(),
+          method: "gps",
+        });
+        setLocationStatus(`📍 Accurate GPS captured (±${Math.round(accuracy)}m)`);
+        setDetectingLocation(false);
+
+        // Non-blocking reverse geocoding via OpenStreetMap Nominatim
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+            { headers: { "Accept-Language": "en" } }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const addr = data.address || {};
+            if (!flat && (addr.house_number || addr.building)) {
+              setFlat(addr.house_number || addr.building);
+            }
+            if (!street && (addr.road || addr.suburb || addr.neighbourhood)) {
+              setStreet(addr.road || addr.suburb || addr.neighbourhood);
+            }
+            if (!city && (addr.city || addr.town || addr.state_district)) {
+              setCity(addr.city || addr.town || addr.state_district);
+            }
+            if (!pincode && addr.postcode) {
+              setPincode(addr.postcode.replace(/\D/g, "").slice(0, 6));
+            }
+          }
+        } catch {}
+      },
+      (err) => {
+        setDetectingLocation(false);
+        setLocationStatus(`⚠️ Location error: ${err.message || "Permission denied"}`);
+      },
+      { enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }
+    );
+  };
 
   // ── Apply Coupon ──
   const handleApplyCoupon = async () => {
@@ -87,16 +174,27 @@ export default function Checkout() {
       setError("Please fill all address fields");
       return;
     }
+
+    if (orderType === "PREORDER" && !scheduledFor) {
+      setError("Please select a scheduled delivery time slot for your pre-order");
+      return;
+    }
+
     setProcessing(true);
 
     try {
-      // Step 1: Place the order
+      // Step 1: Place the order with location, instructions & schedule
       const res = await addOrder({
         user:      { name: user.name, mobile: user.mobile },
-        kitchenId: kitchenId || cart[0]?.kitchenId || cart[0]?.kitchen_id,
+        kitchenId: effectiveKitchenId,
         items:     cart.map(i => ({ id: i.id, name: i.name, price: i.price, quantity: i.quantity, kitchenId: i.kitchenId })),
         total:     finalTotal,
         address:   fullAddress,
+        customer_location: customerLocation,
+        delivery_instructions: deliveryInstructions.trim() || null,
+        food_instructions: foodInstructions.trim() || null,
+        order_type: orderType,
+        scheduled_for: orderType === "PREORDER" ? scheduledFor : null,
       });
 
       if (!res.success) {
@@ -299,9 +397,47 @@ export default function Checkout() {
           )}
         </div>
 
-        {/* ── 📍 Delivery Address ── */}
+        {/* ── 📍 Delivery Address & GPS Location ── */}
         <div style={card(t)}>
-          <h3 style={section(t)}>📍 Delivery Address</h3>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", flexWrap: "wrap", gap: "8px" }}>
+            <h3 style={{ ...section(t), margin: 0 }}>📍 Delivery Address</h3>
+            <button
+              type="button"
+              onClick={handleGetCurrentLocation}
+              disabled={detectingLocation}
+              style={{
+                background: t.accentSoft,
+                border: `1px solid ${t.accent}`,
+                color: t.accentText,
+                borderRadius: "8px",
+                padding: "6px 12px",
+                fontSize: "12px",
+                fontWeight: "700",
+                cursor: detectingLocation ? "not-allowed" : "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              {detectingLocation ? "⏳ Detecting GPS..." : "📍 Use My Current Location"}
+            </button>
+          </div>
+
+          {locationStatus && (
+            <div style={{
+              backgroundColor: customerLocation ? "rgba(39,174,96,0.12)" : "rgba(229,62,62,0.12)",
+              border: `1px solid ${customerLocation ? "#27ae60" : "#e53e3e"}`,
+              borderRadius: "8px",
+              padding: "8px 12px",
+              fontSize: "12px",
+              color: customerLocation ? "#27ae60" : "#e53e3e",
+              fontWeight: "600",
+              marginBottom: "12px",
+            }}>
+              {locationStatus}
+            </div>
+          )}
+
           <div style={{ display:"flex", flexDirection:"column", gap:"12px" }}>
             <Field label="Flat / House No." value={flat}     onChange={setFlat}    placeholder="e.g. Flat 4B" t={t} />
             <Field label="Street / Area"    value={street}   onChange={setStreet}  placeholder="e.g. MG Road" t={t} />
@@ -316,6 +452,186 @@ export default function Checkout() {
               <p style={{ fontSize:"13px", color:t.text, fontWeight:"600", margin:0 }}>{fullAddress}</p>
             </div>
           )}
+        </div>
+
+        {/* ── 🌙 Order Schedule & Pre-order ── */}
+        <div style={card(t)}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+            <h3 style={{ ...section(t), margin: 0 }}>⏱️ Order Schedule</h3>
+            {kitchen?.businessStatusLabel && (
+              <span style={{
+                fontSize: "11px",
+                fontWeight: "800",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                backgroundColor: kitchen.canOrderNow ? "#27ae6020" : "#f39c1220",
+                color: kitchen.canOrderNow ? "#27ae60" : "#e67e22",
+              }}>
+                {kitchen.businessStatusLabel}
+              </span>
+            )}
+          </div>
+
+          {kitchen?.canOrderNow === false && kitchen?.canPreorder === true && (
+            <div style={{
+              backgroundColor: "#f39c1215",
+              border: "1.5px solid #f39c1240",
+              borderRadius: "10px",
+              padding: "10px 12px",
+              marginBottom: "14px",
+              fontSize: "12px",
+              color: t.text,
+              lineHeight: 1.5,
+            }}>
+              🌙 <strong>Kitchen is currently closed for immediate orders.</strong><br />
+              You can pre-order now for the upcoming shift ({kitchen.nextOpening || "Tonight"}). Your food will be freshly prepared and delivered on schedule!
+            </div>
+          )}
+
+          {kitchen?.canOrderNow !== false && (
+            <div style={{ display: "flex", gap: "10px", marginBottom: "14px" }}>
+              <button
+                type="button"
+                onClick={() => setOrderType("IMMEDIATE")}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  border: orderType === "IMMEDIATE" ? `2px solid ${t.accent}` : `1px solid ${t.border}`,
+                  backgroundColor: orderType === "IMMEDIATE" ? (t.dark ? "#1e1e30" : "#fff8ed") : "transparent",
+                  color: t.text,
+                  fontWeight: orderType === "IMMEDIATE" ? "800" : "600",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                }}
+              >
+                ⚡ Immediate Delivery<br />
+                <span style={{ fontSize: "11px", color: t.subText, fontWeight: "500" }}>Arrives in 25-35 min</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setOrderType("PREORDER")}
+                disabled={!kitchen?.preorder_enabled}
+                style={{
+                  flex: 1,
+                  padding: "10px 12px",
+                  borderRadius: "10px",
+                  border: orderType === "PREORDER" ? `2px solid ${t.accent}` : `1px solid ${t.border}`,
+                  backgroundColor: orderType === "PREORDER" ? (t.dark ? "#1e1e30" : "#fff8ed") : "transparent",
+                  color: t.text,
+                  fontWeight: orderType === "PREORDER" ? "800" : "600",
+                  fontSize: "13px",
+                  cursor: "pointer",
+                  opacity: kitchen?.preorder_enabled ? 1 : 0.5,
+                }}
+              >
+                🌙 Schedule Pre-order<br />
+                <span style={{ fontSize: "11px", color: t.subText, fontWeight: "500" }}>Choose delivery slot</span>
+              </button>
+            </div>
+          )}
+
+          {orderType === "PREORDER" && (
+            <div>
+              <label style={{ fontSize: "11px", fontWeight: "800", color: t.subText, display: "block", marginBottom: "6px" }}>
+                SELECT DELIVERY TIME SLOT:
+              </label>
+              {kitchen?.preorderSlots && kitchen.preorderSlots.length > 0 ? (
+                <select
+                  value={scheduledFor}
+                  onChange={(e) => setScheduledFor(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: `1.5px solid ${t.accent}`,
+                    backgroundColor: t.input,
+                    color: t.text,
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    outline: "none",
+                  }}
+                >
+                  <option value="">-- Choose a delivery window --</option>
+                  {kitchen.preorderSlots.map((slot, idx) => (
+                    <option key={idx} value={slot.isoString}>
+                      {slot.dateLabel} · {slot.timeSlot}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p style={{ fontSize: "12px", color: t.mutedText }}>
+                  Pre-orders open between {kitchen?.opening_time || "22:00"} and {kitchen?.closing_time || "06:00"}.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* ── 📝 Special Instructions (Food & Delivery) ── */}
+        <div style={card(t)}>
+          <h3 style={section(t)}>📝 Special Instructions (Optional)</h3>
+
+          <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            {/* Food Instructions */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <label style={{ fontSize: "11px", fontWeight: "800", color: t.subText }}>
+                  🍽️ FOOD PREPARATION INSTRUCTIONS (Visible to Kitchen)
+                </label>
+                <span style={{ fontSize: "10px", color: t.mutedText }}>{foodInstructions.length}/500</span>
+              </div>
+              <textarea
+                value={foodInstructions}
+                onChange={(e) => setFoodInstructions(e.target.value.slice(0, 500))}
+                placeholder="e.g. Less spicy, no onions, extra napkins, contact-free packaging"
+                rows={2}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  borderRadius: "8px",
+                  border: `1.5px solid ${t.border}`,
+                  backgroundColor: t.input,
+                  color: t.text,
+                  padding: "8px 12px",
+                  fontSize: "13px",
+                  outline: "none",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+            </div>
+
+            {/* Delivery Instructions */}
+            <div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "4px" }}>
+                <label style={{ fontSize: "11px", fontWeight: "800", color: t.subText }}>
+                  🛵 DELIVERY INSTRUCTIONS (Visible to Delivery Partner)
+                </label>
+                <span style={{ fontSize: "10px", color: t.mutedText }}>{deliveryInstructions.length}/500</span>
+              </div>
+              <textarea
+                value={deliveryInstructions}
+                onChange={(e) => setDeliveryInstructions(e.target.value.slice(0, 500))}
+                placeholder="e.g. Gate code #401, leave parcel at door, please do not ring doorbell"
+                rows={2}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  borderRadius: "8px",
+                  border: `1.5px solid ${t.border}`,
+                  backgroundColor: t.input,
+                  color: t.text,
+                  padding: "8px 12px",
+                  fontSize: "13px",
+                  outline: "none",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* ── 💳 Payment Method ── */}

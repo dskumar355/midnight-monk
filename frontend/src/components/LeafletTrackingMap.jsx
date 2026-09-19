@@ -65,13 +65,73 @@ function createCustomDivIcon(emoji, bg, border = "#FFFFFF", pulse = false) {
   });
 }
 
+function MapGpsPill({ isDelivered, isOutForDelivery, isRealGps, lastUpdated }) {
+  const [secondsAgo, setSecondsAgo] = useState(null);
+
+  useEffect(() => {
+    if (!lastUpdated) {
+      setSecondsAgo(null);
+      return;
+    }
+    const update = () => {
+      try {
+        const last = new Date(lastUpdated).getTime();
+        const diff = Math.max(0, Math.floor((Date.now() - last) / 1000));
+        setSecondsAgo(diff);
+      } catch {
+        setSecondsAgo(null);
+      }
+    };
+    update();
+    const interval = setInterval(update, 5000);
+    return () => clearInterval(interval);
+  }, [lastUpdated]);
+
+  return (
+    <div
+      style={{
+        backgroundColor: "rgba(15,23,42,0.88)",
+        color: "#FFDFBA",
+        padding: "6px 14px",
+        borderRadius: "20px",
+        fontSize: "12px",
+        fontWeight: "700",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
+        backdropFilter: "blur(6px)",
+        pointerEvents: "auto",
+        border: "1px solid rgba(201,120,62,0.3)",
+      }}
+    >
+      <span
+        style={{
+          display: "inline-block",
+          width: "8px",
+          height: "8px",
+          borderRadius: "50%",
+          backgroundColor: isDelivered ? "#22c55e" : "#eab308",
+          boxShadow: isDelivered ? "0 0 8px #22c55e" : "0 0 8px #eab308",
+        }}
+      />
+      {isDelivered
+        ? "Order Delivered"
+        : isOutForDelivery
+        ? isRealGps
+          ? `🟢 Live GPS: On the way ${secondsAgo != null ? `(${secondsAgo}s ago)` : ""}`
+          : "Connecting to Rider GPS..."
+        : "Preparing at Kitchen"}
+    </div>
+  );
+}
+
 function LeafletTrackingMap({
   trackingData,
   orderStatus = "ORDER_PLACED",
   etaMinutes,
   distanceKm,
   isRealGps = false,
-  secondsAgo = null,
   height = "380px",
   t = {},
 }) {
@@ -135,7 +195,7 @@ function LeafletTrackingMap({
         console.warn("Could not fit Leaflet map bounds:", err);
       }
     }
-  }, [kitchenCoord, customerCoord, riderCoord, isOutForDelivery, isDelivered]);
+  }, [kitchenCoord?.lat, kitchenCoord?.lng, customerCoord?.lat, customerCoord?.lng, riderCoord?.lat, riderCoord?.lng, isOutForDelivery, isDelivered]);
 
   // ── Smooth interpolation for rider marker movement ──
   const animateRiderMarker = useCallback((startPos, endPos, duration = 1200) => {
@@ -143,6 +203,7 @@ function LeafletTrackingMap({
 
     if (startPos.lat === endPos.lat && startPos.lng === endPos.lng) {
       riderMarkerRef.current.setLatLng([endPos.lat, endPos.lng]);
+      lastRiderPosRef.current = endPos;
       return;
     }
 
@@ -150,7 +211,17 @@ function LeafletTrackingMap({
       cancelAnimationFrame(animFrameRef.current);
     }
 
+    let curLatLng = null;
+    try {
+      curLatLng = riderMarkerRef.current.getLatLng();
+    } catch {
+      curLatLng = null;
+    }
+    const effectiveStartLat = curLatLng ? curLatLng.lat : startPos.lat;
+    const effectiveStartLng = curLatLng ? curLatLng.lng : startPos.lng;
+
     const startTime = performance.now();
+    lastRiderPosRef.current = endPos;
 
     const frame = (now) => {
       const elapsed = now - startTime;
@@ -158,8 +229,8 @@ function LeafletTrackingMap({
       // Ease out cubic
       const ease = 1 - Math.pow(1 - progress, 3);
 
-      const curLat = startPos.lat + (endPos.lat - startPos.lat) * ease;
-      const curLng = startPos.lng + (endPos.lng - startPos.lng) * ease;
+      const curLat = effectiveStartLat + (endPos.lat - effectiveStartLat) * ease;
+      const curLng = effectiveStartLng + (endPos.lng - effectiveStartLng) * ease;
 
       if (riderMarkerRef.current) {
         riderMarkerRef.current.setLatLng([curLat, curLng]);
@@ -167,8 +238,6 @@ function LeafletTrackingMap({
 
       if (progress < 1) {
         animFrameRef.current = requestAnimationFrame(frame);
-      } else {
-        lastRiderPosRef.current = endPos;
       }
     };
 
@@ -374,7 +443,19 @@ function LeafletTrackingMap({
       fitMapBounds();
       boundsFittedRef.current = true;
     }
-  }, [trackingData, isOutForDelivery, isDelivered, fitMapBounds, animateRiderMarker, usingFallback]);
+  }, [
+    riderCoord?.lat,
+    riderCoord?.lng,
+    riderCoord?.accuracy,
+    kitchenCoord?.lat,
+    kitchenCoord?.lng,
+    customerCoord?.lat,
+    customerCoord?.lng,
+    isOutForDelivery,
+    isDelivered,
+    animateRiderMarker,
+    usingFallback,
+  ]);
 
   // If using fallback simulation map due to missing container or initialization error
   if (usingFallback) {
@@ -417,43 +498,12 @@ function LeafletTrackingMap({
           pointerEvents: "none",
         }}
       >
-        <div
-          style={{
-            backgroundColor: "rgba(15,23,42,0.88)",
-            color: "#FFDFBA",
-            padding: "6px 14px",
-            borderRadius: "20px",
-            fontSize: "12px",
-            fontWeight: "700",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            boxShadow: "0 4px 12px rgba(0,0,0,0.3)",
-            backdropFilter: "blur(6px)",
-            pointerEvents: "auto",
-            border: "1px solid rgba(201,120,62,0.3)",
-          }}
-        >
-          <span
-            style={{
-              display: "inline-block",
-              width: "8px",
-              height: "8px",
-              borderRadius: "50%",
-              backgroundColor: isDelivered ? "#22c55e" : "#eab308",
-              boxShadow: isDelivered
-                ? "0 0 8px #22c55e"
-                : "0 0 8px #eab308",
-            }}
-          />
-          {isDelivered
-            ? "Order Delivered"
-            : isOutForDelivery
-            ? (isRealGps || trackingData?.is_real_gps)
-              ? `🟢 Live GPS: On the way ${secondsAgo != null ? `(${secondsAgo}s ago)` : ""}`
-              : "Connecting to Rider GPS..."
-            : "Preparing at Kitchen"}
-        </div>
+        <MapGpsPill
+          isDelivered={isDelivered}
+          isOutForDelivery={isOutForDelivery}
+          isRealGps={Boolean(isRealGps || trackingData?.is_real_gps)}
+          lastUpdated={trackingData?.last_gps_update}
+        />
 
         {/* Recenter Button */}
         <button

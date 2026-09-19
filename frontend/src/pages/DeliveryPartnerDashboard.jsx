@@ -40,26 +40,44 @@ export default function DeliveryPartnerDashboard() {
   const lastSentCoordsRef = useRef(null);
   const lastUiTimeRef = useRef(0);
   const watchIdRef = useRef(null);
+  const partnerRef = useRef(partner);
+  partnerRef.current = partner;
 
   const activeDelivery = orders.find(
     (o) => o.status === "OUT_FOR_DELIVERY" || o.status === "PICKED_UP"
   );
 
   const load = async (silent = false) => {
-    const [dashboardData] = await Promise.all([
-      api.getDeliveryDashboard(),
-      fetchDeliveryOrders({ silent }),
-    ]);
-    setDashboard(dashboardData);
-    if (dashboardData?.partner) updatePartner({ ...partner, ...dashboardData.partner });
+    try {
+      const [dashboardData] = await Promise.all([
+        api.getDeliveryDashboard(),
+        fetchDeliveryOrders({ silent }),
+      ]);
+      setDashboard(dashboardData);
+      if (dashboardData?.partner) {
+        const current = partnerRef.current;
+        if (
+          !current ||
+          current.isOnline !== dashboardData.partner.isOnline ||
+          current.name !== dashboardData.partner.name
+        ) {
+          updatePartner({ ...(current || {}), ...dashboardData.partner });
+        }
+      }
+    } catch (err) {
+      console.warn("Delivery dashboard load error:", err);
+    }
   };
 
   useEffect(() => {
-    if (!partner) return navigate("/delivery/login");
+    if (!partner?.id) {
+      navigate("/delivery/login");
+      return;
+    }
     load(false);
     const timer = setInterval(() => load(true), 15000);
     return () => clearInterval(timer);
-  }, [partner]);
+  }, [partner?.id]);
 
   // ── Real Geolocation Tracking Effect ──
   useEffect(() => {
@@ -206,10 +224,18 @@ export default function DeliveryPartnerDashboard() {
     }
 
     setBusyId(order.id);
-    const res = await updateDeliveryStatus(order.id, action.next);
-    if (res?.error) setActionError(res.error);
-    await load();
-    setBusyId("");
+    try {
+      const res = await updateDeliveryStatus(order.id, action.next);
+      if (res?.error) {
+        setActionError(res.error);
+      } else {
+        await load(true);
+      }
+    } catch (err) {
+      setActionError(err.message || "Failed to update delivery status");
+    } finally {
+      setBusyId("");
+    }
   };
 
   const handleConfirmDelivery = async (e) => {
@@ -227,16 +253,20 @@ export default function DeliveryPartnerDashboard() {
         ? { cashCollected: otpModalOrder.cod?.amount_expected || otpModalOrder.total }
         : {}),
     };
-    const res = await updateDeliveryStatus(otpModalOrder.id, "DELIVERED", payload);
-    if (res?.error) {
-      setActionError(res.error);
+    try {
+      const res = await updateDeliveryStatus(otpModalOrder.id, "DELIVERED", payload);
+      if (res?.error) {
+        setActionError(res.error);
+      } else {
+        setOtpModalOrder(null);
+        setOtpInput("");
+        await load(true);
+      }
+    } catch (err) {
+      setActionError(err.message || "Failed to complete delivery");
+    } finally {
       setBusyId("");
-      return;
     }
-    setOtpModalOrder(null);
-    setOtpInput("");
-    await load();
-    setBusyId("");
   };
 
   const cards = [
@@ -359,7 +389,7 @@ export default function DeliveryPartnerDashboard() {
       <div style={S.layout}>
         <section style={S.panel}>
           <h2 style={S.panelTitle}>Orders</h2>
-          {loading ? <p>Loading…</p> : orders.map((order) => {
+          {loading && orders.length === 0 ? <p>Loading…</p> : orders.map((order) => {
             const action = ACTIONS[order.status];
             const isTransit = order.status === "OUT_FOR_DELIVERY" || order.status === "PICKED_UP";
             return (

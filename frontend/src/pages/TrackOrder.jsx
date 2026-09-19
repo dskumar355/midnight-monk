@@ -21,6 +21,55 @@ function getActiveStepIndex(status) {
   return 0; // ORDER_PLACED, ACCEPTED, PREPARING
 }
 
+function LiveGpsBadge({ isRealGps, lastUpdated }) {
+  const [secondsAgo, setSecondsAgo] = useState(null);
+
+  useEffect(() => {
+    if (!lastUpdated) {
+      setSecondsAgo(null);
+      return;
+    }
+    const updateSecs = () => {
+      try {
+        const last = new Date(lastUpdated).getTime();
+        const diff = Math.max(0, Math.floor((Date.now() - last) / 1000));
+        setSecondsAgo(diff);
+      } catch {
+        setSecondsAgo(null);
+      }
+    };
+    updateSecs();
+    const interval = setInterval(updateSecs, 5000);
+    return () => clearInterval(interval);
+  }, [lastUpdated]);
+
+  return (
+    <span style={{
+      backgroundColor: isRealGps ? "rgba(34,197,94,0.15)" : "rgba(234,179,8,0.15)",
+      color: isRealGps ? "#4ade80" : "#facc15",
+      border: `1px solid ${isRealGps ? "rgba(34,197,94,0.4)" : "rgba(234,179,8,0.4)"}`,
+      padding: "4px 10px",
+      borderRadius: "6px",
+      fontSize: "11px",
+      fontWeight: "800",
+      display: "inline-flex",
+      alignItems: "center",
+      gap: "5px",
+    }}>
+      <span style={{
+        width: "6px",
+        height: "6px",
+        borderRadius: "50%",
+        backgroundColor: isRealGps ? "#22c55e" : "#eab308",
+        display: "inline-block",
+      }} />
+      {isRealGps
+        ? `Live GPS ${secondsAgo != null ? `(${secondsAgo}s ago)` : ""}`
+        : "Connecting Rider GPS..."}
+    </span>
+  );
+}
+
 export default function TrackOrder() {
   const { orderId } = useParams();
   const navigate = useNavigate();
@@ -37,7 +86,26 @@ export default function TrackOrder() {
     try {
       if (isInitial) setLoading(true);
       const data = await api.getOrderTracking(orderId);
-      setTracking(data);
+      setTracking((prev) => {
+        if (!prev) return data;
+        const riderPrev = prev.rider || {};
+        const riderNext = data?.rider || {};
+        const isRiderEqual =
+          riderPrev.lat === riderNext.lat &&
+          riderPrev.lng === riderNext.lng &&
+          riderPrev.accuracy === riderNext.accuracy;
+
+        if (
+          prev.status === data?.status &&
+          prev.eta_minutes === data?.eta_minutes &&
+          prev.distance_km === data?.distance_km &&
+          prev.last_gps_update === data?.last_gps_update &&
+          isRiderEqual
+        ) {
+          return prev;
+        }
+        return { ...prev, ...data };
+      });
       setError(null);
     } catch (err) {
       console.warn("⚠️ Failed to load order tracking:", err.message);
@@ -72,27 +140,6 @@ export default function TrackOrder() {
       }
     }
   }, [tracking?.status]);
-
-  const [secondsAgo, setSecondsAgo] = useState(null);
-
-  useEffect(() => {
-    if (!tracking?.last_gps_update) {
-      setSecondsAgo(null);
-      return;
-    }
-    const updateSecs = () => {
-      try {
-        const last = new Date(tracking.last_gps_update).getTime();
-        const diff = Math.max(0, Math.floor((Date.now() - last) / 1000));
-        setSecondsAgo(diff);
-      } catch {
-        setSecondsAgo(null);
-      }
-    };
-    updateSecs();
-    const interval = setInterval(updateSecs, 5000);
-    return () => clearInterval(interval);
-  }, [tracking?.last_gps_update]);
 
   // ── Real-time Socket.IO subscription ──
   useEffect(() => {
@@ -366,29 +413,10 @@ export default function TrackOrder() {
             )}
 
             {isOut && (
-              <span style={{
-                backgroundColor: tracking?.is_real_gps ? "rgba(34,197,94,0.15)" : "rgba(234,179,8,0.15)",
-                color: tracking?.is_real_gps ? "#4ade80" : "#facc15",
-                border: `1px solid ${tracking?.is_real_gps ? "rgba(34,197,94,0.4)" : "rgba(234,179,8,0.4)"}`,
-                padding: "4px 10px",
-                borderRadius: "6px",
-                fontSize: "11px",
-                fontWeight: "800",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "5px",
-              }}>
-                <span style={{
-                  width: "6px",
-                  height: "6px",
-                  borderRadius: "50%",
-                  backgroundColor: tracking?.is_real_gps ? "#22c55e" : "#eab308",
-                  display: "inline-block",
-                }} />
-                {tracking?.is_real_gps
-                  ? `Live GPS ${secondsAgo != null ? `(${secondsAgo}s ago)` : ""}`
-                  : "Connecting Rider GPS..."}
-              </span>
+              <LiveGpsBadge
+                isRealGps={Boolean(tracking?.is_real_gps)}
+                lastUpdated={tracking?.last_gps_update}
+              />
             )}
           </div>
         </div>
@@ -475,7 +503,6 @@ export default function TrackOrder() {
             etaMinutes={tracking?.eta_minutes}
             distanceKm={tracking?.distance_km}
             isRealGps={tracking?.is_real_gps}
-            secondsAgo={secondsAgo}
             height="min(65vh, 480px)"
             t={t}
           />

@@ -11,10 +11,18 @@ export default function MasterAdminLogin() {
 
   const handleLogin = async () => {
     setError("");
-    if (!username || !password) { setError("Username and password required"); return; }
-    const res = await login(username, password);
+    const cleanUser = username.trim();
+    const cleanPass = password.trim();
+    if (!cleanUser || !cleanPass) { setError("Username and password required"); return; }
+    const res = await login(cleanUser, cleanPass);
     if (res.success) navigate("/master-admin/dashboard");
-    else setError(res.error);
+    else {
+      if (res.error?.includes("Failed to fetch") || res.error?.includes("NetworkError")) {
+        setError("Backend is waking up (Render free tier). Please wait 15 seconds and try again.");
+      } else {
+        setError(res.error || "Login failed");
+      }
+    }
   };
 
   return (
@@ -23,16 +31,47 @@ export default function MasterAdminLogin() {
         <div style={S.icon}>👑</div>
         <h2 style={S.title}>Master Admin</h2>
         <p style={S.sub}>Full system access</p>
+
+        {/* Quick Demo Credentials */}
+        <div style={{ background: "rgba(245,166,35,0.08)", border: "1px dashed rgba(245,166,35,0.3)", borderRadius: "10px", padding: "10px 12px", fontSize: "12px" }}>
+          <div style={{ fontWeight: "800", color: "#F5A623", marginBottom: "6px", fontSize: "11px", letterSpacing: "0.5px" }}>
+            DEMO MASTER LOGIN (1-CLICK FILL):
+          </div>
+          <button
+            type="button"
+            onClick={() => { setUsername("master"); setPassword("master123"); setError(""); }}
+            style={{ width: "100%", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(245,166,35,0.3)", borderRadius: "6px", padding: "7px 10px", textAlign: "left", fontSize: "11px", cursor: "pointer", fontWeight: "600", color: "#fff", display: "flex", justifyContent: "space-between" }}
+          >
+            <span>👑 <b>Platform Admin</b></span>
+            <span style={{ color: "#F5A623", fontWeight: "700" }}>master / master123</span>
+          </button>
+        </div>
+
         <div style={S.field}>
           <label style={S.label}>USERNAME</label>
-          <input style={S.input} placeholder="master" value={username}
-            onChange={e => setUsername(e.target.value)} />
+          <input
+            style={S.input}
+            placeholder="master"
+            value={username}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
+            onChange={e => setUsername(e.target.value)}
+          />
         </div>
         <div style={S.field}>
           <label style={S.label}>PASSWORD</label>
-          <input style={S.input} type="password" placeholder="Enter password" value={password}
+          <input
+            style={S.input}
+            type="password"
+            placeholder="Enter password"
+            value={password}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
             onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key==="Enter" && handleLogin()} />
+            onKeyDown={e => e.key==="Enter" && handleLogin()}
+          />
         </div>
         {error && <div style={S.error}>⚠️ {error}</div>}
         <button style={{...S.btn, opacity: loading ? 0.7 : 1}} onClick={handleLogin} disabled={loading}>

@@ -11,10 +11,18 @@ export default function AdminLogin() {
 
   const handleLogin = async () => {
     setError("");
-    if (!username || !password) { setError("Username and password required"); return; }
-    const res = await login(username, password);
+    const cleanUser = username.trim();
+    const cleanPass = password.trim();
+    if (!cleanUser || !cleanPass) { setError("Username and password required"); return; }
+    const res = await login(cleanUser, cleanPass);
     if (res.success) navigate("/kitchen-admin/dashboard");
-    else setError(res.error);
+    else {
+      if (res.error?.includes("Failed to fetch") || res.error?.includes("NetworkError")) {
+        setError("Backend is waking up (Render free tier). Please wait 15 seconds and try again.");
+      } else {
+        setError(res.error || "Login failed");
+      }
+    }
   };
 
   return (
@@ -23,16 +31,57 @@ export default function AdminLogin() {
         <div style={S.icon}>🍳</div>
         <h2 style={S.title}>Kitchen Admin</h2>
         <p style={S.sub}>Sign in to manage your kitchen</p>
+
+        {/* Quick Demo Credentials */}
+        <div style={{ background: "#fef9f0", border: "1px dashed #e2a855", borderRadius: "10px", padding: "10px 12px", fontSize: "12px" }}>
+          <div style={{ fontWeight: "800", color: "#9c6317", marginBottom: "6px", fontSize: "11px", letterSpacing: "0.5px" }}>
+            DEMO KITCHEN LOGINS (1-CLICK FILL):
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            <button
+              type="button"
+              onClick={() => { setUsername("admin1"); setPassword("1234"); setError(""); }}
+              style={{ background: "#fff", border: "1px solid #e2a855", borderRadius: "6px", padding: "6px 10px", textAlign: "left", fontSize: "11px", cursor: "pointer", fontWeight: "600", color: "#333", display: "flex", justifyContent: "space-between" }}
+            >
+              <span>🍳 <b>Night Bites (k1)</b></span>
+              <span style={{ color: "#e2a855", fontWeight: "700" }}>admin1 / 1234</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => { setUsername("admin2"); setPassword("1234"); setError(""); }}
+              style={{ background: "#fff", border: "1px solid #e2a855", borderRadius: "6px", padding: "6px 10px", textAlign: "left", fontSize: "11px", cursor: "pointer", fontWeight: "600", color: "#333", display: "flex", justifyContent: "space-between" }}
+            >
+              <span>🥘 <b>Midnight Meals (k2)</b></span>
+              <span style={{ color: "#e2a855", fontWeight: "700" }}>admin2 / 1234</span>
+            </button>
+          </div>
+        </div>
+
         <div style={S.field}>
           <label style={S.label}>USERNAME</label>
-          <input style={S.input} placeholder="e.g. admin1" value={username}
-            onChange={e => setUsername(e.target.value)} />
+          <input
+            style={S.input}
+            placeholder="e.g. admin1"
+            value={username}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
+            onChange={e => setUsername(e.target.value)}
+          />
         </div>
         <div style={S.field}>
           <label style={S.label}>PASSWORD</label>
-          <input style={S.input} type="password" placeholder="Enter password" value={password}
+          <input
+            style={S.input}
+            type="password"
+            placeholder="Enter password"
+            value={password}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
             onChange={e => setPassword(e.target.value)}
-            onKeyDown={e => e.key==="Enter" && handleLogin()} />
+            onKeyDown={e => e.key==="Enter" && handleLogin()}
+          />
         </div>
         {error && <div style={S.error}>⚠️ {error}</div>}
         <button style={{...S.btn, opacity: loading ? 0.7 : 1}} onClick={handleLogin} disabled={loading}>

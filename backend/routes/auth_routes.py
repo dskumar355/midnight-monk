@@ -4,6 +4,7 @@ from models.user_model import create_user, format_user, validate_user
 from models.delivery_partner_model import format_delivery_partner
 from utils.helpers import generate_token, verify_token
 import hashlib
+import re
 from datetime import datetime
 from utils.limiter import limiter
 
@@ -123,13 +124,19 @@ def admin_login():
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    admin = admins_collection.find_one({"username": username})
+    clean_user = username.strip()
+    admin = admins_collection.find_one({
+        "$or": [
+            {"username": {"$regex": f"^{re.escape(clean_user)}$", "$options": "i"}},
+            {"kitchen_id": {"$regex": f"^{re.escape(clean_user)}$", "$options": "i"}},
+        ]
+    })
 
     if not admin:
-        return jsonify({"error": "Admin not found"}), 404
+        return jsonify({"error": "Kitchen Admin not found"}), 404
 
-    # Verify password
-    if admin.get("password") != hash_password(password):
+    # Verify password (support both hashed and direct match)
+    if admin.get("password") != hash_password(password) and admin.get("password") != password:
         return jsonify({"error": "Invalid password"}), 401
 
     token = generate_token({
@@ -167,12 +174,15 @@ def master_login():
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    master = master_admins_collection.find_one({"username": username})
+    clean_user = username.strip()
+    master = master_admins_collection.find_one({
+        "username": {"$regex": f"^{re.escape(clean_user)}$", "$options": "i"}
+    })
 
     if not master:
         return jsonify({"error": "Master admin not found"}), 404
 
-    if master.get("password") != hash_password(password):
+    if master.get("password") != hash_password(password) and master.get("password") != password:
         return jsonify({"error": "Invalid password"}), 401
 
     token = generate_token({
@@ -202,11 +212,15 @@ def delivery_login():
     if not username or not password:
         return jsonify({"error": "Username and password are required"}), 400
 
-    partner = delivery_partners_collection.find_one({"username": username, "role": "delivery_partner"})
+    clean_user = username.strip()
+    partner = delivery_partners_collection.find_one({
+        "username": {"$regex": f"^{re.escape(clean_user)}$", "$options": "i"},
+        "role": "delivery_partner"
+    })
     if not partner:
         return jsonify({"error": "Delivery partner not found"}), 404
 
-    if partner.get("password") != hash_password(password):
+    if partner.get("password") != hash_password(password) and partner.get("password") != password:
         return jsonify({"error": "Invalid password"}), 401
 
     token = generate_token({
